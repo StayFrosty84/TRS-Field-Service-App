@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, createAccount, createContact, createWorkOrder, addPhoto } from '../db/db.js';
 import { useToast } from '../components/Toast.jsx';
+import AddressAutocomplete from '../components/AddressAutocomplete.jsx';
 
 export default function WorkOrderNew() {
   const navigate = useNavigate();
@@ -157,16 +158,21 @@ export default function WorkOrderNew() {
       )}
 
       <label>Breakdown location</label>
-      <div className="row" style={{ gap: 8 }}>
-        <input
-          placeholder="Address or description"
-          value={locationText}
-          onChange={(e) => setLocationText(e.target.value)}
-        />
-        <button type="button" className="btn btn--ghost btn--sm" onClick={useGps} style={{ whiteSpace: 'nowrap' }}>
-          📍 GPS
-        </button>
-      </div>
+      <AddressAutocomplete
+        value={locationText}
+        placeholder="Search address, or type a description"
+        onChangeText={(t) => {
+          setLocationText(t);
+          setGps(null); // manual edit no longer matches a picked address's coordinates
+        }}
+        onPick={({ label, lat, lng }) => {
+          setLocationText(label);
+          setGps(lat != null && lng != null ? { lat, lng } : null);
+        }}
+      />
+      <button type="button" className="btn btn--ghost btn--sm" onClick={useGps} style={{ marginTop: 8 }}>
+        📍 Use current location
+      </button>
 
       <label>The issue</label>
       <textarea

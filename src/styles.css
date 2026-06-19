@@ -278,6 +278,49 @@ select:focus {
   margin: 22px 0 10px;
   font-weight: 700;
 }
+/* Address autocomplete */
+.ac-wrap {
+  position: relative;
+}
+.ac-hint {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  font-size: 18px;
+  pointer-events: none;
+}
+.ac-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  max-height: 260px;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+.ac-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  padding: 12px 14px;
+  font-size: 15px;
+  min-height: 0;
+}
+.ac-item:last-child {
+  border-bottom: none;
+}
+.ac-item:active {
+  background: var(--surface);
+}
+
 .toast {
   position: fixed;
   left: 50%;
