@@ -143,6 +143,10 @@ export async function saveBill(workOrderId, data) {
   });
 }
 
+export async function savePdfToBill(billId, pdfBlob) {
+  await db.billsOfSale.update(billId, { pdfBlob, pdfGeneratedAt: now() });
+}
+
 export async function markBillPaid(id, method) {
   await db.billsOfSale.update(id, { paymentStatus: 'paid', paymentMethod: method || '', paidAt: now() });
 }

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { getProfile, saveProfile } from '../db/db.js';
+import { useFeatures } from '../lib/useFeatures.js';
 import { exportBackup, importBackup, backupFilename } from '../lib/backup.js';
 import { shareFile, openBlob } from '../lib/share.js';
 import { computeTotals } from '../lib/format.js';
@@ -26,10 +28,15 @@ export default function Settings() {
   const [logoBlob, setLogoBlob] = useState(null);
   const [logoUrl, setLogoUrl] = useState(null);
   const [theme, setThemeState] = useState(getTheme());
+  const features = useFeatures();
 
   function chooseTheme(t) {
     setTheme(t);
     setThemeState(t);
+  }
+
+  async function toggleFeature(key, value) {
+    await saveProfile({ [key]: value });
   }
 
   useEffect(() => {
@@ -148,7 +155,34 @@ export default function Settings() {
         ))}
       </div>
 
-      <div className="section-title">Business profile (appears on every Bill of Sale)</div>
+      <div className="section-title">Features</div>
+      <div className="card">
+        <ToggleRow
+          label="Home dashboard"
+          hint="When off, Home is just the work-order list."
+          checked={features.dashboard}
+          onChange={(v) => toggleFeature('featDashboard', v)}
+        />
+        <ToggleRow
+          label="Billing tab & payment tracking"
+          hint="Show the Billing tab and Paid/Unpaid on bills."
+          checked={features.billing}
+          onChange={(v) => toggleFeature('featBilling', v)}
+        />
+        <ToggleRow
+          label="Credit card fee"
+          hint="Show the card-fee option on bills."
+          checked={features.cardFee}
+          onChange={(v) => toggleFeature('featCardFee', v)}
+        />
+      </div>
+
+      <div className="section-title">Reports</div>
+      <Link className="btn btn--ghost" to="/reports">
+        📊 View revenue reports
+      </Link>
+
+      <div className="section-title" style={{ marginTop: 22 }}>Business profile (appears on every Bill of Sale)</div>
 
       <label>Business name</label>
       <input value={form.businessName} onChange={set('businessName')} />
@@ -245,5 +279,22 @@ export default function Settings() {
         </label>
       </div>
     </>
+  );
+}
+
+function ToggleRow({ label, hint, checked, onChange }) {
+  return (
+    <label className="row" style={{ gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        style={{ width: 22, height: 22, minHeight: 0, flex: '0 0 auto', marginTop: 2 }}
+      />
+      <span style={{ flex: 1 }}>
+        <div style={{ fontWeight: 600 }}>{label}</div>
+        <div className="muted" style={{ fontSize: 13 }}>{hint}</div>
+      </span>
+    </label>
   );
 }

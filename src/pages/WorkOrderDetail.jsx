@@ -10,14 +10,17 @@ import {
   deletePhoto,
   getBillForWorkOrder,
 } from '../db/db.js';
-import { toDateInput, fromDateInput } from '../lib/format.js';
+import { toDateInput, fromDateInput, money } from '../lib/format.js';
+import { shareFile, openBlob } from '../lib/share.js';
 import { useToast } from '../components/Toast.jsx';
+import { useFeatures } from '../lib/useFeatures.js';
 import AddressAutocomplete from '../components/AddressAutocomplete.jsx';
 
 export default function WorkOrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const features = useFeatures();
   const [issue, setIssue] = useState('');
   const [notes, setNotes] = useState('');
   const [locationText, setLocationText] = useState('');
@@ -159,9 +162,42 @@ export default function WorkOrderDetail() {
       </div>
 
       <div className="section-title">Bill of Sale</div>
-      <button className="btn" onClick={() => navigate(`/work-orders/${id}/bill`)}>
-        {bill ? '📄 View / edit Bill of Sale' : '📄 Generate Bill of Sale'}
-      </button>
+      {bill ? (
+        <div className="card">
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <strong>{money(bill.total || 0)}</strong>
+            {features.billing && (
+              <span className={`badge badge--${bill.paymentStatus === 'paid' ? 'paid' : 'unpaid'}`}>
+                {bill.paymentStatus === 'paid' ? 'paid' : 'unpaid'}
+              </span>
+            )}
+          </div>
+          {bill.pdfBlob && (
+            <div className="btn-row">
+              <button className="btn btn--ghost" onClick={() => openBlob(bill.pdfBlob, 'bill-of-sale.pdf')}>
+                👁 View PDF
+              </button>
+              <button
+                className="btn"
+                onClick={() => shareFile(bill.pdfBlob, 'bill-of-sale.pdf', { title: 'Bill of Sale' })}
+              >
+                📤 Share PDF
+              </button>
+            </div>
+          )}
+          <button
+            className="btn btn--ghost"
+            style={{ marginTop: 10 }}
+            onClick={() => navigate(`/work-orders/${id}/bill`)}
+          >
+            ✏️ Edit bill
+          </button>
+        </div>
+      ) : (
+        <button className="btn" onClick={() => navigate(`/work-orders/${id}/bill`)}>
+          📄 Generate Bill of Sale
+        </button>
+      )}
 
       <div className="btn-row">
         <button className="btn btn--ghost" onClick={toggleComplete}>

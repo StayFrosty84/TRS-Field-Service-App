@@ -39,14 +39,19 @@ function dataUrlToBlob(dataUrl) {
   return new Blob([bytes], { type: mime });
 }
 
+// Fields kept on-device but excluded from backups (regenerable, would bloat the file).
+const OMIT_FIELDS = { billsOfSale: ['pdfBlob'] };
+
 export async function exportBackup() {
   const data = {};
   for (const table of TABLES) {
     const rows = await db[table].toArray();
     const fields = BLOB_FIELDS[table] || [];
+    const omit = OMIT_FIELDS[table] || [];
     data[table] = await Promise.all(
       rows.map(async (row) => {
         const out = { ...row };
+        for (const f of omit) delete out[f];
         for (const f of fields) {
           if (out[f] instanceof Blob) out[f] = await blobToBase64(out[f]);
         }

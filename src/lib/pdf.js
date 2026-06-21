@@ -43,28 +43,45 @@ export async function generateBillPdf({ profile, account, contact, workOrder, bi
   };
 
   // ---- Seller header ----
+  // Logo is scaled to fit a fixed box (preserving aspect ratio), pinned top-right.
+  const LOGO_BOX_W = 120;
+  const LOGO_BOX_H = 60;
+  let logoH = 0;
   if (profile?.logoBlob) {
     try {
       const url = await blobToDataURL(profile.logoBlob);
       const { w, h } = await imageSize(url);
-      const lw = 64;
-      const lh = (h / w) * lw || 64;
-      doc.addImage(url, fmtForJsPDF(profile.logoBlob.type), right - lw, y, lw, lh);
+      const scale = Math.min(LOGO_BOX_W / w, LOGO_BOX_H / h);
+      const lw = w * scale;
+      logoH = h * scale;
+      doc.addImage(url, fmtForJsPDF(profile.logoBlob.type), right - lw, y, lw, logoH);
     } catch {
       /* ignore logo errors */
     }
   }
-  doc.setFont('helvetica', 'bold').setFontSize(18);
-  doc.text(profile?.businessName || 'My Business', M, y + 6);
+
+  // Seller text is width-limited so it never runs under the logo, and wraps cleanly.
+  const textW = right - M - (logoH ? LOGO_BOX_W + 16 : 0);
+  doc.setFont('helvetica', 'bold').setFontSize(18).setTextColor(0);
+  const nameLines = doc.splitTextToSize(profile?.businessName || 'My Business', textW);
+  doc.text(nameLines, M, y + 14);
+  let infoY = y + 14 + (nameLines.length - 1) * 20 + 18;
+
   doc.setFont('helvetica', 'normal').setFontSize(10).setTextColor(90);
   const sellerLines = [
     profile?.ownerName,
     profile?.address,
     [profile?.phone, profile?.email].filter(Boolean).join('  •  '),
   ].filter(Boolean);
-  sellerLines.forEach((t, i) => doc.text(String(t), M, y + 24 + i * 13));
+  sellerLines.forEach((t) => {
+    const wrapped = doc.splitTextToSize(String(t), textW);
+    doc.text(wrapped, M, infoY);
+    infoY += wrapped.length * 13;
+  });
   doc.setTextColor(0);
-  y += 24 + sellerLines.length * 13;
+
+  // Continue below whichever is taller: the text block or the logo.
+  y = Math.max(infoY - 4, y + logoH);
 
   // ---- Title ----
   line(22);
@@ -77,7 +94,7 @@ export async function generateBillPdf({ profile, account, contact, workOrder, bi
     const num = `${bill.billPrefix || 'BOS-'}${String(bill.billNumber).padStart(4, '0')}`;
     doc.text(`Bill #: ${num}`, right, y - 16, { align: 'right' });
   }
-  doc.text(`Date: ${fmtDate(bill?.pdfGeneratedAt || Date.now())}`, right, y - 4, { align: 'right' });
+  doc.text(`Date: ${fmtDate(bill?.billDate || bill?.pdfGeneratedAt || Date.now())}`, right, y - 4, { align: 'right' });
   doc.text(`Service: ${fmtDate(workOrder?.serviceDate)}`, right, y + 9, { align: 'right' });
   doc.setTextColor(0);
   // PAID marker (right column, below the dates so it doesn't collide with "Bill To")
@@ -190,7 +207,7 @@ export async function generateBillPdf({ profile, account, contact, workOrder, bi
   line(12);
   doc.setFont('helvetica', 'normal').setFontSize(9).setTextColor(90);
   doc.text(`Customer signature — ${contact?.name || account?.name || ''}`, M, y);
-  doc.text(`Date: ${fmtDate(bill?.pdfGeneratedAt || Date.now())}`, M, y + 12);
+  doc.text(`Date: ${fmtDate(bill?.billDate || bill?.pdfGeneratedAt || Date.now())}`, M, y + 12);
   doc.setTextColor(0);
 
   // ---- Terms / notes footer ----
