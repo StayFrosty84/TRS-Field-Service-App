@@ -5,6 +5,14 @@ import { useEffect, useRef, useState } from 'react';
 // user just keeps whatever they typed.
 const PHOTON_URL = 'https://photon.komoot.io/api/';
 
+// Results are limited to the US + Canada and ranked toward Western New York
+// (proximity bias near Buffalo, NY) since that's the service area.
+const WNY_LAT = 42.8864;
+const WNY_LON = -78.8784;
+const ALLOWED_COUNTRIES = new Set(['US', 'CA']);
+const inUsaOrCanada = (p = {}) =>
+  ALLOWED_COUNTRIES.has(p.countrycode) || ['United States', 'Canada'].includes(p.country);
+
 function formatLabel(p = {}) {
   const line1 = [p.housenumber, p.street].filter(Boolean).join(' ') || p.name;
   const line2 = [p.city || p.town || p.village || p.county, p.state, p.postcode]
@@ -50,17 +58,24 @@ export default function AddressAutocomplete({ value, onChangeText, onPick, place
     abortRef.current = ac;
     setLoading(true);
     try {
-      const res = await fetch(`${PHOTON_URL}?q=${encodeURIComponent(q)}&limit=5`, {
-        signal: ac.signal,
+      const params = new URLSearchParams({
+        q,
+        limit: '10',
+        lang: 'en',
+        lat: String(WNY_LAT),
+        lon: String(WNY_LON),
       });
+      const res = await fetch(`${PHOTON_URL}?${params}`, { signal: ac.signal });
       const data = await res.json();
       const items = (data.features || [])
+        .filter((f) => inUsaOrCanada(f.properties))
         .map((f) => ({
           label: formatLabel(f.properties),
           lat: f.geometry?.coordinates?.[1],
           lng: f.geometry?.coordinates?.[0],
         }))
-        .filter((i) => i.label);
+        .filter((i) => i.label)
+        .slice(0, 5);
       setSuggestions(items);
       setOpen(items.length > 0);
     } catch (err) {
