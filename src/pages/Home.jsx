@@ -77,7 +77,7 @@ export default function Home() {
           <Icon name="plus" /> New work order
         </button>
         {features.billing && stats.outstanding > 0 && (
-          <button className="btn btn--ghost" onClick={() => navigate('/billing')}>
+          <button className="btn btn--ghost" onClick={() => navigate('/work', { state: { filter: 'unpaid' } })}>
             <Icon name="banknote" /> Unpaid
           </button>
         )}

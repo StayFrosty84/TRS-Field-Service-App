@@ -7,7 +7,6 @@ const ALL_TABS = [
   { to: '/work', label: 'Work', ico: 'wrench' },
   { to: '/accounts', label: 'Accounts', ico: 'building' },
   { to: '/contacts', label: 'Contacts', ico: 'user' },
-  { to: '/billing', label: 'Billing', ico: 'banknote' },
   { to: '/settings', label: 'Settings', ico: 'settings' },
 ];
 
@@ -19,11 +18,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const features = useFeatures();
   const isRoot = ROOT_PATHS.includes(pathname);
-  const tabs = ALL_TABS.filter((t) => {
-    if (t.to === '/billing' && !features.billing) return false;
-    if (t.to === '/' && !features.dashboard) return false;
-    return true;
-  });
+  const tabs = ALL_TABS.filter((t) => !(t.to === '/' && !features.dashboard));
 
   return (
     <div className="app">

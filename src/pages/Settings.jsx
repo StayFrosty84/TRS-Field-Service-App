@@ -163,8 +163,8 @@ export default function Settings() {
           onChange={(v) => toggleFeature('featDashboard', v)}
         />
         <ToggleRow
-          label="Billing tab & payment tracking"
-          hint="Show the Billing tab and Paid/Unpaid on bills."
+          label="Payment tracking"
+          hint="Track Paid/Unpaid on bills and work orders."
           checked={features.billing}
           onChange={(v) => toggleFeature('featBilling', v)}
         />
