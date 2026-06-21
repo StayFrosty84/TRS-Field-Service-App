@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, createAccount, createContact, createWorkOrder, addPhoto } from '../db/db.js';
+import { db, createAccount, createContact, createWorkOrder, addPhoto, listWorkTypes } from '../db/db.js';
 import { toDateInput, fromDateInput } from '../lib/format.js';
 import { useToast } from '../components/Toast.jsx';
 import AddressAutocomplete from '../components/AddressAutocomplete.jsx';
@@ -14,6 +14,7 @@ export default function WorkOrderNew() {
 
   const accounts = useLiveQuery(() => db.accounts.orderBy('name').toArray());
   const allContacts = useLiveQuery(() => db.contacts.toArray());
+  const workTypes = useLiveQuery(listWorkTypes) || [];
 
   const [accountId, setAccountId] = useState(location.state?.accountId || '');
   const [newAccountName, setNewAccountName] = useState('');
@@ -24,6 +25,7 @@ export default function WorkOrderNew() {
   const [gps, setGps] = useState(null);
   const [serviceDate, setServiceDate] = useState(toDateInput(Date.now()));
   const [issue, setIssue] = useState('');
+  const [workTypeId, setWorkTypeId] = useState('');
   const [photos, setPhotos] = useState([]); // { id, blob, url }
   const [busy, setBusy] = useState(false);
 
@@ -92,6 +94,8 @@ export default function WorkOrderNew() {
         location: { text: locationText.trim(), ...(gps || {}) },
         serviceDate: fromDateInput(serviceDate) || Date.now(),
         issue: issue.trim(),
+        workTypeId: workTypeId || null,
+        templateItems: workTypes.find((w) => w.id === workTypeId)?.items || [],
       });
 
       for (const p of photos) await addPhoto(woId, p.blob);
@@ -180,6 +184,27 @@ export default function WorkOrderNew() {
 
       <label>Service date</label>
       <input type="date" value={serviceDate} onChange={(e) => setServiceDate(e.target.value)} />
+
+      {workTypes.length > 0 && (
+        <>
+          <label>Work type</label>
+          <div className="chips" style={{ flexWrap: 'wrap' }}>
+            <button type="button" className={`chip ${!workTypeId ? 'chip--active' : ''}`} onClick={() => setWorkTypeId('')}>
+              None
+            </button>
+            {workTypes.map((w) => (
+              <button
+                type="button"
+                key={w.id}
+                className={`chip ${workTypeId === w.id ? 'chip--active' : ''}`}
+                onClick={() => setWorkTypeId(w.id)}
+              >
+                <Icon name={w.icon || 'wrench'} size={14} /> {w.name}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       <label>The issue</label>
       <textarea
