@@ -12,12 +12,14 @@ import {
   markBillPaid,
   markBillUnpaid,
   listWorkTypes,
+  updatePhoto,
 } from '../db/db.js';
 import { toDateInput, fromDateInput, money } from '../lib/format.js';
 import { shareFile, openBlob } from '../lib/share.js';
 import { useToast } from '../components/Toast.jsx';
 import { useFeatures } from '../lib/useFeatures.js';
 import AddressAutocomplete from '../components/AddressAutocomplete.jsx';
+import PhotoMarkup from '../components/PhotoMarkup.jsx';
 import Icon from '../components/Icon.jsx';
 
 export default function WorkOrderDetail() {
@@ -32,6 +34,7 @@ export default function WorkOrderDetail() {
   const [serviceDate, setServiceDate] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [payMethod, setPayMethod] = useState('Cash');
+  const [markupPhoto, setMarkupPhoto] = useState(null); // { id, blob }
 
   const data = useLiveQuery(async () => {
     const order = await db.workOrders.get(id);
@@ -189,7 +192,7 @@ export default function WorkOrderDetail() {
       </label>
       <div className="row" style={{ flexWrap: 'wrap' }}>
         {photos.map((p) => (
-          <PhotoThumb key={p.id} photo={p} onRemove={() => deletePhoto(p.id)} />
+          <PhotoThumb key={p.id} photo={p} onOpen={() => setMarkupPhoto(p)} onRemove={() => deletePhoto(p.id)} />
         ))}
       </div>
 
@@ -268,11 +271,23 @@ export default function WorkOrderDetail() {
           Delete work order
         </button>
       </div>
+
+      {markupPhoto && (
+        <PhotoMarkup
+          blob={markupPhoto.blob}
+          onClose={() => setMarkupPhoto(null)}
+          onSave={async (b) => {
+            await updatePhoto(markupPhoto.id, b);
+            setMarkupPhoto(null);
+            toast('Photo updated');
+          }}
+        />
+      )}
     </>
   );
 }
 
-function PhotoThumb({ photo, onRemove }) {
+function PhotoThumb({ photo, onOpen, onRemove }) {
   const [url, setUrl] = useState(null);
   useEffect(() => {
     const u = URL.createObjectURL(photo.blob);
@@ -283,8 +298,30 @@ function PhotoThumb({ photo, onRemove }) {
   return (
     <div style={{ position: 'relative' }}>
       {url && (
-        <img src={url} alt="" style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 10 }} />
+        <img
+          src={url}
+          alt=""
+          onClick={onOpen}
+          style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 10, cursor: 'pointer' }}
+        />
       )}
+      <button
+        onClick={onOpen}
+        aria-label="Mark up photo"
+        style={{
+          position: 'absolute',
+          bottom: -6,
+          left: -6,
+          width: 24,
+          height: 24,
+          borderRadius: '50%',
+          border: 'none',
+          background: 'var(--primary)',
+          color: '#fff',
+        }}
+      >
+        <Icon name="pencil" size={13} />
+      </button>
       <button
         onClick={() => confirm('Remove this photo?') && onRemove()}
         aria-label="Remove photo"
