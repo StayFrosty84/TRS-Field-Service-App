@@ -155,27 +155,32 @@ export default function Settings() {
         ))}
       </div>
 
-      <div className="section-title">Features</div>
-      <div className="card">
-        <ToggleRow
-          label="Home dashboard"
-          hint="Show the Home tab with summary stats. When off, the Work tab is your home screen."
-          checked={features.dashboard}
-          onChange={(v) => toggleFeature('featDashboard', v)}
-        />
-        <ToggleRow
-          label="Payment tracking"
-          hint="Track Paid/Unpaid on bills and work orders."
-          checked={features.billing}
-          onChange={(v) => toggleFeature('featBilling', v)}
-        />
-        <ToggleRow
-          label="Credit card fee"
-          hint="Show the card-fee option on bills."
-          checked={features.cardFee}
-          onChange={(v) => toggleFeature('featCardFee', v)}
-        />
-      </div>
+      <details>
+        <summary className="section-title" style={{ cursor: 'pointer' }}>Admin settings</summary>
+        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+          Advanced feature toggles. Leave these as-is unless you mean to change them.
+        </p>
+        <div className="card">
+          <ToggleRow
+            label="Home dashboard"
+            hint="Show the Home tab with summary stats. When off, the Work tab is your home screen."
+            checked={features.dashboard}
+            onChange={(v) => toggleFeature('featDashboard', v)}
+          />
+          <ToggleRow
+            label="Payment tracking"
+            hint="Track Paid/Unpaid on bills and work orders."
+            checked={features.billing}
+            onChange={(v) => toggleFeature('featBilling', v)}
+          />
+          <ToggleRow
+            label="Credit card fee"
+            hint="Show the card-fee option on bills."
+            checked={features.cardFee}
+            onChange={(v) => toggleFeature('featCardFee', v)}
+          />
+        </div>
+      </details>
 
       <div className="section-title">Reports</div>
       <Link className="btn btn--ghost" to="/reports">

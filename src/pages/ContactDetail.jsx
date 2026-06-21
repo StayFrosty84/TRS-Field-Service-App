@@ -1,7 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, deleteContact } from '../db/db.js';
-import { fmtDate } from '../lib/format.js';
+import { fmtDate, getPhones, telHref, fmtPhone } from '../lib/format.js';
 import { useToast } from '../components/Toast.jsx';
 import Icon from '../components/Icon.jsx';
 
@@ -21,6 +21,7 @@ export default function ContactDetail() {
   if (!data) return null;
   if (data.missing) return <p className="muted">Contact not found.</p>;
   const { contact, account, orders } = data;
+  const phones = getPhones(contact);
 
   async function onDelete() {
     if (!confirm(`Delete contact "${contact.name}"?`)) return;
@@ -39,9 +40,26 @@ export default function ContactDetail() {
             <Icon name="building" size={15} /> <Link to={`/accounts/${account.id}`}>{account.name}</Link>
           </div>
         )}
-        {contact.phone && <div><Icon name="phone" size={15} /> <a href={`tel:${contact.phone}`}>{contact.phone}</a></div>}
-        {contact.email && <div><Icon name="mail" size={15} /> <a href={`mailto:${contact.email}`}>{contact.email}</a></div>}
-        {contact.notes && <div className="muted" style={{ marginTop: 6 }}>{contact.notes}</div>}
+        {phones.map((p, i) => (
+          <a
+            key={i}
+            className="btn btn--ghost"
+            href={telHref(p)}
+            style={{ width: '100%', justifyContent: 'flex-start', marginTop: 8 }}
+          >
+            <Icon name="phone" size={16} /> {p.label ? `${p.label}: ` : ''}{fmtPhone(p)}
+          </a>
+        ))}
+        {contact.email && (
+          <a
+            className="btn btn--ghost"
+            href={`mailto:${contact.email}`}
+            style={{ width: '100%', justifyContent: 'flex-start', marginTop: 8 }}
+          >
+            <Icon name="mail" size={16} /> {contact.email}
+          </a>
+        )}
+        {contact.notes && <div className="muted" style={{ marginTop: 8 }}>{contact.notes}</div>}
       </div>
 
       <div className="btn-row">

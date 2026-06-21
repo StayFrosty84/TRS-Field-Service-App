@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { db, createAccount, updateAccount } from '../db/db.js';
+import { getPhones } from '../lib/format.js';
 import { useToast } from '../components/Toast.jsx';
+import PhoneListField from '../components/PhoneListField.jsx';
 
-const EMPTY = { name: '', phone: '', email: '', address: '', notes: '' };
+const EMPTY = { name: '', phones: [], email: '', address: '', notes: '' };
+
+// Normalize an entity's phones into the form shape (label defaults to Mobile).
+const toFormPhones = (e) =>
+  getPhones(e).map((p) => ({ label: p.label || 'Mobile', number: p.number || '', ext: p.ext || '' }));
 
 export default function AccountForm() {
   const { id } = useParams();
@@ -13,7 +19,7 @@ export default function AccountForm() {
   const editing = Boolean(id);
 
   useEffect(() => {
-    if (id) db.accounts.get(id).then((a) => a && setForm(a));
+    if (id) db.accounts.get(id).then((a) => a && setForm({ ...EMPTY, ...a, phones: toFormPhones(a) }));
   }, [id]);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -21,11 +27,15 @@ export default function AccountForm() {
   async function save(e) {
     e.preventDefault();
     if (!form.name.trim()) return toast('Name is required');
+    const phones = (form.phones || [])
+      .filter((p) => (p.number || '').trim())
+      .map((p) => ({ label: p.label || 'Mobile', number: p.number.trim(), ext: (p.ext || '').trim() }));
+    const payload = { ...form, phones, phone: phones[0]?.number || '' };
     if (editing) {
-      await updateAccount(id, form);
+      await updateAccount(id, payload);
       navigate(`/accounts/${id}`);
     } else {
-      const newId = await createAccount(form);
+      const newId = await createAccount(payload);
       navigate(`/accounts/${newId}`);
     }
     toast('Account saved');
@@ -39,7 +49,7 @@ export default function AccountForm() {
       <input value={form.name} onChange={set('name')} autoFocus />
 
       <label>Phone</label>
-      <input type="tel" value={form.phone} onChange={set('phone')} />
+      <PhoneListField phones={form.phones} onChange={(phones) => setForm((f) => ({ ...f, phones }))} />
 
       <label>Email</label>
       <input type="email" value={form.email} onChange={set('email')} />

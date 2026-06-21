@@ -100,6 +100,15 @@ export default function BillEditor() {
     setItems((arr) => arr.map((it) => (it.id === itemId ? { ...it, [key]: val } : it)));
   const addItem = () => setItems((arr) => [...arr, blankItem()]);
   const removeItem = (itemId) => setItems((arr) => (arr.length > 1 ? arr.filter((it) => it.id !== itemId) : arr));
+  const moveItem = (itemId, dir) =>
+    setItems((arr) => {
+      const i = arr.findIndex((it) => it.id === itemId);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= arr.length) return arr;
+      const copy = [...arr];
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+      return copy;
+    });
 
   function addFromCatalog(item) {
     const line = { id: crypto.randomUUID(), description: item.description, qty: 1, unitPrice: item.unitPrice };
@@ -167,7 +176,9 @@ export default function BillEditor() {
     }
   }
 
-  const pdfName = `bill-of-sale-${(account?.name || 'customer').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.pdf`;
+  const isEstimate = Boolean(order?.isEstimate);
+  const docNoun = isEstimate ? 'Estimate' : 'Bill of Sale';
+  const pdfName = `${isEstimate ? 'estimate' : 'bill-of-sale'}-${(account?.name || 'customer').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.pdf`;
   const billNo = ctx.bill?.billNumber ? String(ctx.bill.billNumber) : null;
 
   // ---------- DONE ----------
@@ -181,7 +192,7 @@ export default function BillEditor() {
       <>
         <div className="empty" style={{ paddingBottom: 12 }}>
           <span className="ico"><Icon name="check-circle" size={40} /></span>
-          Bill saved to this work order.
+          {docNoun} saved to this work order.
         </div>
 
         {recipientList.length > 0 && (
@@ -207,7 +218,7 @@ export default function BillEditor() {
           <button className="btn btn--ghost" onClick={() => openBlob(result.pdfBlob, pdfName)}>
             <Icon name="eye" /> View PDF
           </button>
-          <button className="btn" onClick={() => shareFile(result.pdfBlob, pdfName, { title: 'Bill of Sale' })}>
+          <button className="btn" onClick={() => shareFile(result.pdfBlob, pdfName, { title: docNoun })}>
             <Icon name="share" /> Share PDF
           </button>
         </div>
@@ -278,7 +289,7 @@ export default function BillEditor() {
   // ---------- EDIT ----------
   return (
     <>
-      <h1 style={{ marginTop: 4 }}>Bill of Sale</h1>
+      <h1 style={{ marginTop: 4 }}>{docNoun}</h1>
       <p className="muted">
         {account?.name}
         {contact ? ` · ${contact.name}` : ''}
@@ -286,7 +297,7 @@ export default function BillEditor() {
       </p>
 
       <div className="section-title">Line items</div>
-      {items.map((it) => {
+      {items.map((it, idx) => {
         const amount = (Number(it.qty) || 0) * (Number(it.unitPrice) || 0);
         return (
           <div key={it.id} className="card" style={{ padding: 12 }}>
@@ -298,20 +309,30 @@ export default function BillEditor() {
             <div className="row" style={{ gap: 8, marginTop: 8 }}>
               <div style={{ flex: 1 }}>
                 <span className="muted" style={{ fontSize: 12 }}>Qty</span>
-                <input type="number" inputMode="decimal" min="0" value={it.qty} onChange={(e) => setItem(it.id, 'qty', e.target.value)} />
+                <input type="number" inputMode="decimal" min="0" value={it.qty} onChange={(e) => setItem(it.id, 'qty', e.target.value)} style={{ fontSize: 18, fontWeight: 600, textAlign: 'center' }} />
               </div>
               <div style={{ flex: 1 }}>
                 <span className="muted" style={{ fontSize: 12 }}>Unit price</span>
-                <input type="number" inputMode="decimal" min="0" step="0.01" placeholder="0.00" value={it.unitPrice} onChange={(e) => setItem(it.id, 'unitPrice', e.target.value)} />
+                <input type="number" inputMode="decimal" min="0" step="0.01" placeholder="0.00" value={it.unitPrice} onChange={(e) => setItem(it.id, 'unitPrice', e.target.value)} style={{ fontSize: 18 }} />
               </div>
-              <div style={{ flex: 1, textAlign: 'right' }}>
+              <div style={{ flex: '0 0 84px', textAlign: 'right' }}>
                 <span className="muted" style={{ fontSize: 12 }}>Amount</span>
                 <div style={{ minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>{money(amount)}</div>
               </div>
             </div>
-            <button className="btn btn--ghost btn--sm" style={{ marginTop: 8 }} onClick={() => removeItem(it.id)}>
-              Remove
-            </button>
+            <div className="row" style={{ gap: 8, marginTop: 8, justifyContent: 'space-between' }}>
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn btn--ghost btn--sm" aria-label="Move up" disabled={idx === 0} onClick={() => moveItem(it.id, -1)}>
+                  <Icon name="chevron-up" size={16} />
+                </button>
+                <button className="btn btn--ghost btn--sm" aria-label="Move down" disabled={idx === items.length - 1} onClick={() => moveItem(it.id, 1)}>
+                  <Icon name="chevron-down" size={16} />
+                </button>
+              </div>
+              <button className="btn btn--ghost btn--sm" onClick={() => removeItem(it.id)}>
+                Remove
+              </button>
+            </div>
           </div>
         );
       })}
@@ -370,6 +391,7 @@ export default function BillEditor() {
               <option>Cash</option>
               <option>Check</option>
               <option>Card</option>
+              <option>Zelle</option>
               <option>Other</option>
             </select>
           )}

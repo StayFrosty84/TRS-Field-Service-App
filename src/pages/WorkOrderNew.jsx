@@ -27,6 +27,7 @@ export default function WorkOrderNew() {
   const [serviceDate, setServiceDate] = useState(toDateInput(Date.now()));
   const [issue, setIssue] = useState('');
   const [workTypeId, setWorkTypeId] = useState('');
+  const [isEstimate, setIsEstimate] = useState(false);
   const [photos, setPhotos] = useState([]); // { id, blob, url }
   const [busy, setBusy] = useState(false);
 
@@ -60,20 +61,6 @@ export default function WorkOrderNew() {
     setGps(null);
   }
 
-  function useGps() {
-    if (!navigator.geolocation) return toast('Geolocation not available');
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        setGps({ lat: latitude, lng: longitude });
-        if (!locationText) setLocationText(`GPS ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
-        toast('Location captured');
-      },
-      () => toast('Could not get GPS'),
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  }
-
   async function save(e) {
     e.preventDefault();
     setBusy(true);
@@ -93,6 +80,9 @@ export default function WorkOrderNew() {
           accountId: acctId,
           name: newContactName.trim(),
           phone: newContactPhone.trim(),
+          phones: newContactPhone.trim()
+            ? [{ label: 'Mobile', number: newContactPhone.trim(), ext: '' }]
+            : [],
         });
       }
 
@@ -102,6 +92,7 @@ export default function WorkOrderNew() {
         location: { text: locationText.trim(), ...(gps || {}) },
         serviceDate: fromDateInput(serviceDate) || Date.now(),
         issue: issue.trim(),
+        isEstimate,
         workTypeId: workTypeId || null,
         templateItems: workTypes.find((w) => w.id === workTypeId)?.items || [],
       });
@@ -187,9 +178,6 @@ export default function WorkOrderNew() {
         }}
       />
       <div className="row" style={{ gap: 8, marginTop: 8 }}>
-        <button type="button" className="btn btn--ghost btn--sm" onClick={useGps}>
-          <Icon name="map-pin" size={16} /> Use current location
-        </button>
         <button type="button" className="btn btn--ghost btn--sm" onClick={useShopAddress}>
           <Icon name="building" size={16} /> Shop
         </button>
@@ -197,6 +185,16 @@ export default function WorkOrderNew() {
 
       <label>Service date</label>
       <input type="date" value={serviceDate} onChange={(e) => setServiceDate(e.target.value)} />
+
+      <label className="row" style={{ gap: 10, alignItems: 'center', marginTop: 12 }}>
+        <input
+          type="checkbox"
+          checked={isEstimate}
+          onChange={(e) => setIsEstimate(e.target.checked)}
+          style={{ width: 22, height: 22, minHeight: 0, flex: '0 0 auto' }}
+        />
+        <span style={{ flex: 1 }}>Estimate — the PDF prints a large “ESTIMATE” label instead of a bill</span>
+      </label>
 
       {workTypes.length > 0 && (
         <>
@@ -227,10 +225,16 @@ export default function WorkOrderNew() {
       />
 
       <label>Photos</label>
-      <label className="btn btn--ghost" style={{ margin: 0 }}>
-        <Icon name="camera" /> Add photos
-        <input type="file" accept="image/*" capture="environment" multiple onChange={onPhotos} hidden />
-      </label>
+      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+        <label className="btn btn--ghost" style={{ margin: 0 }}>
+          <Icon name="camera" /> Take photo
+          <input type="file" accept="image/*" capture="environment" multiple onChange={onPhotos} hidden />
+        </label>
+        <label className="btn btn--ghost" style={{ margin: 0 }}>
+          <Icon name="image" /> Choose from library
+          <input type="file" accept="image/*" multiple onChange={onPhotos} hidden />
+        </label>
+      </div>
       {photos.length > 0 && (
         <div className="row" style={{ flexWrap: 'wrap', marginTop: 10 }}>
           {photos.map((p) => (

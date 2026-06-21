@@ -2,9 +2,14 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, createContact, updateContact } from '../db/db.js';
+import { getPhones } from '../lib/format.js';
 import { useToast } from '../components/Toast.jsx';
+import PhoneListField from '../components/PhoneListField.jsx';
 
-const EMPTY = { name: '', accountId: '', role: '', phone: '', email: '', notes: '' };
+const EMPTY = { name: '', accountId: '', role: '', phones: [], email: '', notes: '' };
+
+const toFormPhones = (e) =>
+  getPhones(e).map((p) => ({ label: p.label || 'Mobile', number: p.number || '', ext: p.ext || '' }));
 
 export default function ContactForm() {
   const { id } = useParams();
@@ -17,7 +22,7 @@ export default function ContactForm() {
   const [form, setForm] = useState({ ...EMPTY, accountId: location.state?.accountId || '' });
 
   useEffect(() => {
-    if (id) db.contacts.get(id).then((c) => c && setForm(c));
+    if (id) db.contacts.get(id).then((c) => c && setForm({ ...EMPTY, ...c, phones: toFormPhones(c) }));
   }, [id]);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -26,11 +31,15 @@ export default function ContactForm() {
     e.preventDefault();
     if (!form.name.trim()) return toast('Name is required');
     if (!form.accountId) return toast('Pick an account');
+    const phones = (form.phones || [])
+      .filter((p) => (p.number || '').trim())
+      .map((p) => ({ label: p.label || 'Mobile', number: p.number.trim(), ext: (p.ext || '').trim() }));
+    const payload = { ...form, phones, phone: phones[0]?.number || '' };
     if (editing) {
-      await updateContact(id, form);
+      await updateContact(id, payload);
       navigate(`/contacts/${id}`);
     } else {
-      const newId = await createContact(form);
+      const newId = await createContact(payload);
       navigate(`/contacts/${newId}`);
     }
     toast('Contact saved');
@@ -60,11 +69,11 @@ export default function ContactForm() {
         </p>
       )}
 
-      <label>Role / title</label>
-      <input value={form.role} onChange={set('role')} placeholder="e.g. Site manager" />
+      <label>Title</label>
+      <input value={form.role} onChange={set('role')} placeholder="e.g. Owner, Site manager" />
 
       <label>Phone</label>
-      <input type="tel" value={form.phone} onChange={set('phone')} />
+      <PhoneListField phones={form.phones} onChange={(phones) => setForm((f) => ({ ...f, phones }))} />
 
       <label>Email</label>
       <input type="email" value={form.email} onChange={set('email')} />

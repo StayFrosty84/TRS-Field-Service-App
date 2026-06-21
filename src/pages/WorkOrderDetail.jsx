@@ -14,7 +14,7 @@ import {
   listWorkTypes,
   updatePhoto,
 } from '../db/db.js';
-import { toDateInput, fromDateInput, money } from '../lib/format.js';
+import { toDateInput, fromDateInput, money, getPhones, telHref, fmtPhone } from '../lib/format.js';
 import { shareFile, openBlob } from '../lib/share.js';
 import { useToast } from '../components/Toast.jsx';
 import { useFeatures } from '../lib/useFeatures.js';
@@ -32,6 +32,7 @@ export default function WorkOrderDetail() {
   const [locationText, setLocationText] = useState('');
   const [gps, setGps] = useState(null);
   const [serviceDate, setServiceDate] = useState('');
+  const [isEstimate, setIsEstimate] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [payMethod, setPayMethod] = useState('Cash');
   const [markupPhoto, setMarkupPhoto] = useState(null); // { id, blob }
@@ -59,6 +60,7 @@ export default function WorkOrderDetail() {
           : null
       );
       setServiceDate(toDateInput(data.order.serviceDate));
+      setIsEstimate(Boolean(data.order.isEstimate));
       setLoaded(true);
     }
   }, [data, loaded]);
@@ -73,6 +75,7 @@ export default function WorkOrderDetail() {
       notes: notes.trim(),
       location: { text: locationText.trim(), ...(gps || {}) },
       serviceDate: fromDateInput(serviceDate) || order.serviceDate,
+      isEstimate,
     });
     toast('Saved');
   }
@@ -125,14 +128,17 @@ export default function WorkOrderDetail() {
         {contact && (
           <div>
             <Icon name="user" size={15} /> <Link to={`/contacts/${contact.id}`}>{contact.name}</Link>
-            {contact.phone ? (
-              <>
-                {' · '}
-                <a href={`tel:${contact.phone}`}>{contact.phone}</a>
-              </>
-            ) : (
-              ''
-            )}
+            {(() => {
+              const p = getPhones(contact)[0];
+              return p ? (
+                <>
+                  {' · '}
+                  <a href={telHref(p)}>{fmtPhone(p)}</a>
+                </>
+              ) : (
+                ''
+              );
+            })()}
           </div>
         )}
       </div>
@@ -152,6 +158,15 @@ export default function WorkOrderDetail() {
       />
       <label>Service date</label>
       <input type="date" value={serviceDate} onChange={(e) => setServiceDate(e.target.value)} />
+      <label className="row" style={{ gap: 10, alignItems: 'center', marginTop: 12 }}>
+        <input
+          type="checkbox"
+          checked={isEstimate}
+          onChange={(e) => setIsEstimate(e.target.checked)}
+          style={{ width: 22, height: 22, minHeight: 0, flex: '0 0 auto' }}
+        />
+        <span style={{ flex: 1 }}>Estimate — the PDF prints a large “ESTIMATE” label instead of a bill</span>
+      </label>
       <label>Issue</label>
       <textarea value={issue} onChange={(e) => setIssue(e.target.value)} />
       <label>Internal notes</label>
@@ -186,10 +201,16 @@ export default function WorkOrderDetail() {
       )}
 
       <div className="section-title">Photos ({photos.length})</div>
-      <label className="btn btn--ghost" style={{ margin: '0 0 10px' }}>
-        <Icon name="camera" /> Add photos
-        <input type="file" accept="image/*" capture="environment" multiple onChange={onPhotos} hidden />
-      </label>
+      <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+        <label className="btn btn--ghost" style={{ margin: 0 }}>
+          <Icon name="camera" /> Take photo
+          <input type="file" accept="image/*" capture="environment" multiple onChange={onPhotos} hidden />
+        </label>
+        <label className="btn btn--ghost" style={{ margin: 0 }}>
+          <Icon name="image" /> Choose from library
+          <input type="file" accept="image/*" multiple onChange={onPhotos} hidden />
+        </label>
+      </div>
       <div className="row" style={{ flexWrap: 'wrap' }}>
         {photos.map((p) => (
           <PhotoThumb key={p.id} photo={p} onOpen={() => setMarkupPhoto(p)} onRemove={() => deletePhoto(p.id)} />
@@ -220,6 +241,7 @@ export default function WorkOrderDetail() {
                   <option>Cash</option>
                   <option>Check</option>
                   <option>Card</option>
+                  <option>Zelle</option>
                   <option>Other</option>
                 </select>
                 <button className="btn btn--sm" onClick={() => markBillPaid(bill.id, payMethod)}>

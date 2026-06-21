@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import { money, fmtDate } from './format.js';
+import { money, fmtDate, getPhones, fmtPhone } from './format.js';
 
 export function blobToDataURL(blob) {
   return new Promise((resolve, reject) => {
@@ -87,8 +87,11 @@ export async function generateBillPdf({ profile, account, contact, workOrder, bi
   line(22);
   doc.setDrawColor(220).line(M, y, right, y);
   line(10);
-  doc.setFont('helvetica', 'bold').setFontSize(20);
-  doc.text('BILL OF SALE', M, y + 8);
+  const isEstimate = Boolean(workOrder?.isEstimate);
+  doc.setFont('helvetica', 'bold').setFontSize(isEstimate ? 26 : 20);
+  if (isEstimate) doc.setTextColor(202, 138, 4); // amber so it reads as a quote, not a bill
+  doc.text(isEstimate ? 'ESTIMATE' : 'BILL OF SALE', M, y + 8);
+  doc.setTextColor(0);
   doc.setFont('helvetica', 'normal').setFontSize(10).setTextColor(90);
   if (bill?.billNumber) {
     doc.text(`Bill #: ${bill.billNumber}`, right, y - 16, { align: 'right' });
@@ -128,12 +131,14 @@ export async function generateBillPdf({ profile, account, contact, workOrder, bi
     return cy;
   };
 
+  const acctPhone = getPhones(account)[0];
+  const ctctPhone = getPhones(contact)[0];
   const billTo = [
     account?.name,
     account?.address,
-    account?.phone,
+    acctPhone ? fmtPhone(acctPhone) : null,
     contact ? `Attn: ${contact.name}` : null,
-    [contact?.phone, contact?.email].filter(Boolean).join('  •  ') || null,
+    [ctctPhone ? fmtPhone(ctctPhone) : null, contact?.email].filter(Boolean).join('  •  ') || null,
   ];
   const svc = [
     workOrder?.location?.text ? `Location: ${workOrder.location.text}` : null,

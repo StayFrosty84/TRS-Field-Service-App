@@ -25,6 +25,30 @@ export const fmtDateTime = (ts) =>
       })
     : '';
 
+// ---- Phone numbers ----------------------------------------------------------
+// Accounts/contacts store `phones: [{ label, number, ext }]`. Older records used a
+// single `phone` string; normalize both shapes to one list for display + calling.
+export function getPhones(entity) {
+  const list = Array.isArray(entity?.phones) ? entity.phones : [];
+  const cleaned = list.filter((p) => (p?.number || '').trim());
+  if (cleaned.length) return cleaned;
+  if (entity?.phone) return [{ label: '', number: entity.phone, ext: '' }];
+  return [];
+}
+
+// tel: link; a comma makes the dialer pause before sending the extension digits.
+export function telHref(p) {
+  const num = String(p?.number || '').replace(/[^\d+*#]/g, '');
+  const ext = String(p?.ext || '').replace(/\D/g, '');
+  return ext ? `tel:${num},${ext}` : `tel:${num}`;
+}
+
+export function fmtPhone(p) {
+  const num = (p?.number || '').trim();
+  const ext = (p?.ext || '').trim();
+  return ext ? `${num} ext. ${ext}` : num;
+}
+
 // Bill-of-sale totals from line items + optional tax and credit-card surcharge.
 // The card fee (when applied) is charged on subtotal + tax — the amount that hits the card.
 export function computeTotals(lineItems = [], taxRate = 0, ccFeeRate = 0, ccFeeApplied = false) {

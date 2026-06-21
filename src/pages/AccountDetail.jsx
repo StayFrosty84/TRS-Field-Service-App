@@ -1,7 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, deleteAccount } from '../db/db.js';
-import { fmtDate } from '../lib/format.js';
+import { fmtDate, getPhones, telHref, fmtPhone } from '../lib/format.js';
 import { useToast } from '../components/Toast.jsx';
 import Icon from '../components/Icon.jsx';
 
@@ -21,6 +21,7 @@ export default function AccountDetail() {
   if (!data) return null;
   if (data.missing) return <p className="muted">Account not found.</p>;
   const { account, contacts, orders } = data;
+  const phones = getPhones(account);
 
   async function onDelete() {
     if (!confirm(`Delete "${account.name}" and all its contacts and work orders?`)) return;
@@ -33,9 +34,26 @@ export default function AccountDetail() {
     <>
       <h1 style={{ marginTop: 4 }}>{account.name}</h1>
       <div className="card">
-        {account.phone && <div><Icon name="phone" size={15} /> <a href={`tel:${account.phone}`}>{account.phone}</a></div>}
-        {account.email && <div><Icon name="mail" size={15} /> <a href={`mailto:${account.email}`}>{account.email}</a></div>}
-        {account.address && <div className="muted" style={{ marginTop: 6 }}>{account.address}</div>}
+        {phones.map((p, i) => (
+          <a
+            key={i}
+            className="btn btn--ghost"
+            href={telHref(p)}
+            style={{ width: '100%', justifyContent: 'flex-start', marginTop: i ? 8 : 0 }}
+          >
+            <Icon name="phone" size={16} /> {p.label ? `${p.label}: ` : ''}{fmtPhone(p)}
+          </a>
+        ))}
+        {account.email && (
+          <a
+            className="btn btn--ghost"
+            href={`mailto:${account.email}`}
+            style={{ width: '100%', justifyContent: 'flex-start', marginTop: phones.length ? 8 : 0 }}
+          >
+            <Icon name="mail" size={16} /> {account.email}
+          </a>
+        )}
+        {account.address && <div className="muted" style={{ marginTop: 8 }}>{account.address}</div>}
         {account.notes && <div className="muted" style={{ marginTop: 6 }}>{account.notes}</div>}
       </div>
 
