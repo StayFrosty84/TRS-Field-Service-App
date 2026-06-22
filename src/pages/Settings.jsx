@@ -10,6 +10,7 @@ import { getTheme, setTheme } from '../lib/theme.js';
 import { useToast } from '../components/Toast.jsx';
 import CatalogManager from '../components/CatalogManager.jsx';
 import WorkTypeManager from '../components/WorkTypeManager.jsx';
+import ImportExport from '../components/ImportExport.jsx';
 import Icon from '../components/Icon.jsx';
 
 const EMPTY = {
@@ -274,6 +275,9 @@ export default function Settings() {
 
       <div className="section-title">Parts &amp; Labor catalog</div>
       <CatalogManager />
+
+      <div className="section-title">Import &amp; export lists</div>
+      <ImportExport />
 
       <div className="section-title">Backup &amp; restore</div>
       <div className="card">
