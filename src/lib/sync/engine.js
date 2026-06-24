@@ -13,7 +13,7 @@ const INTERVAL_MS = 20000;
 const CONNECTED_KEY = 'fs-gdrive-connected';
 
 let status = {
-  configured: drive.getClientId() !== '',
+  configured: drive.getClientId() !== '' && drive.getSyncEndpoint() !== '',
   connected: false,
   syncing: false,
   lastSyncedAt: 0,
@@ -31,7 +31,7 @@ export function subscribe(fn) {
   return () => listeners.delete(fn);
 }
 export const getStatus = () => status;
-export const isConfigured = () => drive.getClientId() !== '';
+export const isConfigured = () => drive.getClientId() !== '' && drive.getSyncEndpoint() !== '';
 
 let folderId = null;
 let timer = null;
@@ -39,14 +39,10 @@ let lastPushedJson = '';
 
 const myStateName = () => `${STATE_PREFIX}${getDeviceId()}.json`;
 
-// Interactive: signs in (may show Google UI), creates/finds the folder, syncs, starts auto-sync.
+// Interactive: redirects the whole page to Google's consent screen. The page navigates away
+// here; the returning authorization code is picked up by init() on the next load.
 export async function connect() {
-  const token = await drive.getToken({ interactive: true });
-  folderId = await drive.findOrCreateFolder(token, FOLDER);
-  localStorage.setItem(CONNECTED_KEY, '1');
-  setStatus({ configured: true, connected: true, error: null });
-  await syncNow();
-  startAuto();
+  await drive.beginAuth();
 }
 
 export function disconnect() {
@@ -170,13 +166,24 @@ function stopAuto() {
   document.removeEventListener('visibilitychange', maybeSync);
 }
 
-// Called once at app startup: resume sync silently if previously connected.
+// Called once at app startup: finish a sign-in redirect if we're returning from one, otherwise
+// resume sync silently if previously connected.
 export function init() {
   if (typeof window === 'undefined') return;
   window.addEventListener('online', () => setStatus({ online: true }));
   window.addEventListener('offline', () => setStatus({ online: false }));
-  if (isConfigured() && localStorage.getItem(CONNECTED_KEY) === '1') {
-    setStatus({ connected: true });
-    syncNow().then(startAuto, startAuto);
-  }
+  drive
+    .completeAuthFromRedirect()
+    .then((returned) => {
+      if (returned) {
+        localStorage.setItem(CONNECTED_KEY, '1');
+        setStatus({ configured: true, connected: true, error: null });
+        return syncNow().then(startAuto, startAuto);
+      }
+      if (isConfigured() && localStorage.getItem(CONNECTED_KEY) === '1') {
+        setStatus({ connected: true });
+        return syncNow().then(startAuto, startAuto);
+      }
+    })
+    .catch((e) => setStatus({ error: e.message || 'Sign-in failed' }));
 }

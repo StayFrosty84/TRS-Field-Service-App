@@ -1,14 +1,19 @@
-// Thin Google Drive client used as the serverless sync store. Auth uses Google Identity
-// Services' browser "token model" (no refresh token in the page — ~1h access tokens, renewed
-// on demand). Scope is `drive.file`, so the app only ever sees the files it creates.
+// Thin Google Drive client used as the serverless sync store. Auth uses the OAuth
+// authorization-code flow with PKCE and a long-lived refresh token: the app redirects to
+// Google's consent screen, a small serverless endpoint (a Google Apps Script web app) exchanges
+// the code for tokens (it holds the client secret), and access tokens are refreshed silently — no
+// hidden iframe, so iOS Safari/PWA no longer forces a reconnect every session. Scope is
+// `drive.file`, so the app only ever sees the files it creates.
 //
-// This module is the untestable boundary (it talks to live Google), so logic is kept minimal.
+// Network/redirect boundary lives here; the pure PKCE/refresh logic is in ./pkce.js (tested).
+import { randomVerifier, challengeFromVerifier, needsRefresh, buildAuthUrl } from './pkce.js';
 
-const SCOPE = 'https://www.googleapis.com/auth/drive.file';
-const GIS_SRC = 'https://accounts.google.com/gsi/client';
 const API = 'https://www.googleapis.com/drive/v3';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
 const CLIENT_ID_KEY = 'fs-gdrive-client-id';
+const ENDPOINT_KEY = 'fs-gdrive-endpoint';
+const TOKENS_KEY = 'fs-gdrive-tokens';
+const PKCE_KEY = 'fs-gdrive-pkce';
 
 // ---- Client ID (entered once in Settings, or via VITE_GOOGLE_CLIENT_ID) ----
 export function getClientId() {
@@ -18,66 +23,119 @@ export function setClientId(id) {
   localStorage.setItem(CLIENT_ID_KEY, (id || '').trim());
 }
 
-// ---- Auth ------------------------------------------------------------------
-let gisPromise;
-function loadGis() {
-  if (gisPromise) return gisPromise;
-  gisPromise = new Promise((resolve, reject) => {
-    if (window.google?.accounts?.oauth2) return resolve();
-    const s = document.createElement('script');
-    s.src = GIS_SRC;
-    s.async = true;
-    s.defer = true;
-    s.onload = resolve;
-    s.onerror = () => reject(new Error('Could not load Google sign-in.'));
-    document.head.appendChild(s);
-  });
-  return gisPromise;
+// ---- Token-exchange endpoint (the Google Apps Script /exec URL; via Settings or VITE_SYNC_ENDPOINT) ----
+export function getSyncEndpoint() {
+  const url = localStorage.getItem(ENDPOINT_KEY) || import.meta.env.VITE_SYNC_ENDPOINT || '';
+  return url.trim().replace(/\/$/, '');
+}
+export function setSyncEndpoint(url) {
+  localStorage.setItem(ENDPOINT_KEY, (url || '').trim());
 }
 
-let tokenClient;
-let accessToken = '';
-let tokenExpiry = 0;
+// ---- Auth ------------------------------------------------------------------
+// Redirect URI = this deployment's base URL (e.g. https://host/field-service-app-v3/). Must be
+// byte-identical between the consent request and the exchange, and registered in Google Console.
+function redirectUri() {
+  return window.location.origin + import.meta.env.BASE_URL;
+}
 
-async function ensureTokenClient() {
-  await loadGis();
+let tokens = loadTokens(); // { refresh_token, access_token, expiry }
+function loadTokens() {
+  try {
+    return JSON.parse(localStorage.getItem(TOKENS_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+function setTokens(patch) {
+  tokens = { ...tokens, ...patch };
+  localStorage.setItem(TOKENS_KEY, JSON.stringify(tokens));
+}
+
+// Start interactive sign-in: redirect the whole page to Google's consent screen. Returns only
+// in the sense that the page then navigates away; the code comes back via completeAuthFromRedirect.
+export async function beginAuth() {
   const clientId = getClientId();
   if (!clientId) throw new Error('No Google Client ID configured.');
-  if (!tokenClient || tokenClient.__clientId !== clientId) {
-    tokenClient = window.google.accounts.oauth2.initTokenClient({
-      client_id: clientId,
-      scope: SCOPE,
-      callback: () => {},
-    });
-    tokenClient.__clientId = clientId;
-  }
-  return tokenClient;
+  if (!getSyncEndpoint()) throw new Error('No sync endpoint (Apps Script URL) configured.');
+  const verifier = randomVerifier();
+  const state = randomVerifier();
+  const challenge = await challengeFromVerifier(verifier);
+  localStorage.setItem(PKCE_KEY, JSON.stringify({ verifier, state }));
+  window.location.assign(buildAuthUrl({ clientId, redirectUri: redirectUri(), challenge, state }));
 }
 
-// Returns a valid access token, reusing the cached one until ~1 min before expiry.
-// `interactive` allows Google to show its sign-in/consent UI; background syncs pass false
-// and simply fail (caught by the engine → "reconnect") if interaction would be required.
-export async function getToken({ interactive = false } = {}) {
-  if (accessToken && Date.now() < tokenExpiry - 60000) return accessToken;
-  const client = await ensureTokenClient();
-  return new Promise((resolve, reject) => {
-    client.callback = (resp) => {
-      if (resp.error) return reject(new Error(resp.error));
-      accessToken = resp.access_token;
-      tokenExpiry = Date.now() + (resp.expires_in ? resp.expires_in * 1000 : 3600000);
-      resolve(accessToken);
-    };
-    try {
-      client.requestAccessToken({ prompt: interactive ? 'consent' : '' });
-    } catch (e) {
-      reject(e);
-    }
+// On app load, exchange a `?code=` (if Google just redirected back) for tokens. Returns true when
+// it handled a sign-in return, false when there's no code. Throws on error/state mismatch.
+export async function completeAuthFromRedirect() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const error = params.get('error');
+  if (!code && !error) return false;
+
+  let pkce = {};
+  try {
+    pkce = JSON.parse(localStorage.getItem(PKCE_KEY)) || {};
+  } catch {
+    /* treat as missing */
+  }
+  localStorage.removeItem(PKCE_KEY);
+  // Strip the code/error from the URL so a reload can't replay it.
+  window.history.replaceState(null, '', window.location.origin + window.location.pathname);
+
+  if (error) throw new Error(`Google sign-in failed: ${error}`);
+  if (!pkce.verifier || params.get('state') !== pkce.state) {
+    throw new Error('Sign-in could not be verified — please try connecting again.');
+  }
+
+  // text/plain keeps this a CORS "simple" request so the Apps Script endpoint needs no preflight.
+  const res = await fetch(getSyncEndpoint(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'exchange', code, code_verifier: pkce.verifier, redirect_uri: redirectUri() }),
   });
+  if (!res.ok) throw new Error(`Sign-in token exchange failed (${res.status}).`);
+  const data = await res.json();
+  // Apps Script always replies 200, so a failure arrives as an { error } body, not a bad status.
+  if (!data.access_token) {
+    throw new Error(data.error ? `Sign-in failed: ${data.error}` : 'Sign-in returned no access token.');
+  }
+  setTokens({
+    refresh_token: data.refresh_token || tokens.refresh_token,
+    access_token: data.access_token,
+    expiry: Date.now() + (data.expires_in ? data.expires_in * 1000 : 3600000),
+  });
+  return true;
+}
+
+// Returns a valid access token: the cached one until ~1 min before expiry, otherwise a silent
+// refresh via the endpoint. Throws (→ engine shows "reconnect") if there's no refresh token.
+export async function getToken() {
+  if (tokens.access_token && !needsRefresh(tokens.expiry, Date.now())) return tokens.access_token;
+  if (!tokens.refresh_token) throw new Error('Not connected — please reconnect Google Drive.');
+  const endpoint = getSyncEndpoint();
+  if (!endpoint) throw new Error('No sync endpoint (Apps Script URL) configured.');
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'refresh', refresh_token: tokens.refresh_token }),
+  });
+  if (!res.ok) throw new Error(`Token refresh failed (${res.status}). Please reconnect.`);
+  const data = await res.json();
+  if (!data.access_token) {
+    throw new Error(data.error ? `Token refresh failed: ${data.error}` : 'Token refresh returned no access token.');
+  }
+  setTokens({
+    access_token: data.access_token,
+    expiry: Date.now() + (data.expires_in ? data.expires_in * 1000 : 3600000),
+    ...(data.refresh_token ? { refresh_token: data.refresh_token } : {}),
+  });
+  return tokens.access_token;
 }
 
 export function forgetToken() {
-  accessToken = '';
-  tokenExpiry = 0;
+  tokens = {};
+  localStorage.removeItem(TOKENS_KEY);
 }
 
 // ---- REST helpers ----------------------------------------------------------

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { subscribe, getStatus, connect, disconnect, syncNow, isConfigured } from '../lib/sync/engine.js';
-import { getClientId, setClientId } from '../lib/sync/drive.js';
+import { getClientId, setClientId, getSyncEndpoint, setSyncEndpoint } from '../lib/sync/drive.js';
 import { useToast } from './Toast.jsx';
 import Icon from './Icon.jsx';
 
@@ -19,15 +19,17 @@ export default function CloudSync() {
   const toast = useToast();
   const [status, setStatus] = useState(getStatus());
   const [clientId, setCid] = useState(getClientId());
-  const [editingId, setEditingId] = useState(!getClientId());
+  const [endpoint, setEndpoint] = useState(getSyncEndpoint());
+  const [editingId, setEditingId] = useState(!isConfigured());
   const [busy, setBusy] = useState(false);
 
   useEffect(() => subscribe(setStatus), []);
 
-  function saveId() {
+  function saveConfig() {
     setClientId(clientId);
+    setSyncEndpoint(endpoint);
     setEditingId(false);
-    toast(clientId.trim() ? 'Google Client ID saved' : 'Client ID cleared');
+    toast('Sync settings saved');
   }
 
   async function run(fn, okMsg) {
@@ -63,9 +65,18 @@ export default function CloudSync() {
             autoCorrect="off"
             spellCheck={false}
           />
+          <label>Token endpoint (Google Apps Script URL)</label>
+          <input
+            value={endpoint}
+            onChange={(e) => setEndpoint(e.target.value)}
+            placeholder="https://script.google.com/macros/s/.../exec"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+          />
           <div className="btn-row">
-            <button className="btn" onClick={saveId}>
-              Save Client ID
+            <button className="btn" onClick={saveConfig}>
+              Save
             </button>
             {configured && (
               <button className="btn btn--ghost" onClick={() => setEditingId(false)}>
@@ -116,7 +127,7 @@ export default function CloudSync() {
 
           <div className="btn-row" style={{ marginTop: 12 }}>
             <button className="btn btn--ghost btn--sm" onClick={() => setEditingId(true)}>
-              Change Client ID
+              Change settings
             </button>
             {status.connected && (
               <button className="btn btn--ghost btn--sm" onClick={() => run(disconnect, 'Disconnected')}>
@@ -138,13 +149,22 @@ export default function CloudSync() {
           </li>
           <li>
             Configure the OAuth consent screen and <strong>publish it to “In production”</strong> (so
-            logins don’t expire every 7 days).
+            sign-in stays valid for months).
           </li>
           <li>
-            Create an <strong>OAuth Client ID → Web application</strong>; add this site’s URL (and
-            <code> http://localhost</code>) as an authorized JavaScript origin.
+            Create an <strong>OAuth Client ID → Web application</strong>; add this site’s URL as an
+            <strong> authorized redirect URI</strong> (e.g. <code>{window.location.origin + import.meta.env.BASE_URL}</code>).
           </li>
-          <li>Paste the Client ID above and tap Connect.</li>
+          <li>
+            Deploy the token-exchange <strong>Google Apps Script</strong> (<code>serverless/apps-script.gs</code>):
+            create a script, add your Client ID + secret as Script Properties, deploy as a Web app
+            (“Anyone” access), then paste its <code>/exec</code> URL above.
+          </li>
+          <li>Paste the Client ID above, tap Save, then Connect.</li>
+          <li>
+            <strong>Install this app to your home screen</strong> so it stays signed in — iOS clears
+            storage from un-installed sites after about a week.
+          </li>
           <li>
             On every device, sign in with the <strong>same Google account</strong> so they share one
             folder.
