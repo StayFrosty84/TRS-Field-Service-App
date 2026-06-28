@@ -5,6 +5,12 @@ on-site, generate signed Bills of Sale (PDF with job photos), and keep a lightwe
 (Accounts, Contacts, service history). All data lives **on your device**; nothing is sent
 to any server.
 
+## Project docs
+
+- [docs/ONBOARDING.md](docs/ONBOARDING.md) — get productive fast: run it, architecture map, how we work.
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — how/where to ship (beta vs. stable, versioning).
+- [docs/ROADMAP.md](docs/ROADMAP.md) — prioritized backlog of improvement ideas.
+
 ## What it does
 
 - **Work orders** — capture account, on-site contact, breakdown location (with optional
@@ -25,14 +31,12 @@ npm run icons   # generates PWA icons from public/icons/favicon.svg (run once)
 npm run dev     # open the printed URL; use device mode in DevTools to emulate a phone
 ```
 
-## Deploy to GitHub Pages (install once on your phone)
+## Deploy
 
-1. Create a new GitHub repo and push **this folder's contents** as the repo root.
-2. In the repo: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-3. Push to `main`. The included workflow (`.github/workflows/deploy.yml`) builds and
-   deploys automatically. It sets the app's base path to `/<repo-name>/` for you.
-4. Open `https://<your-username>.github.io/<repo-name>/` on your phone →
-   **Share → Add to Home Screen**. After the first load it works fully offline.
+This app ships to GitHub Pages on the `trs` remote with separate **beta** and **stable**
+channels. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the full flow. Once deployed,
+open the site on your phone → **Share → Add to Home Screen**; after the first load it works
+fully offline.
 
 ## Tech
 
