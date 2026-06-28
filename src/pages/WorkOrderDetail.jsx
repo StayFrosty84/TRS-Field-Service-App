@@ -39,6 +39,7 @@ export default function WorkOrderDetail() {
   const [referenceNumber, setReferenceNumber] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [payMethod, setPayMethod] = useState('Cash');
+  const [payReference, setPayReference] = useState('');
   const [markupPhoto, setMarkupPhoto] = useState(null); // { id, blob }
 
   const data = useLiveQuery(async () => {
@@ -268,17 +269,25 @@ export default function WorkOrderDetail() {
                 <Icon name="rotate-ccw" /> Mark unpaid
               </button>
             ) : (
-              <div className="row" style={{ gap: 8, marginTop: 10, alignItems: 'center' }}>
-                <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} style={{ flex: 1 }}>
-                  <option>Cash</option>
-                  <option>Check</option>
-                  <option>Card</option>
-                  <option>Zelle</option>
-                  <option>Other</option>
-                </select>
-                <button className="btn btn--sm" onClick={() => markBillPaid(bill.id, payMethod)}>
-                  <Icon name="check" /> Mark paid
-                </button>
+              <div style={{ marginTop: 10 }}>
+                <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+                  <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} style={{ flex: 1 }}>
+                    <option>Cash</option>
+                    <option>Check</option>
+                    <option>Card</option>
+                    <option>Zelle</option>
+                    <option>Other</option>
+                  </select>
+                  <button className="btn btn--sm" onClick={() => markBillPaid(bill.id, payMethod, payReference.trim())}>
+                    <Icon name="check" /> Mark paid
+                  </button>
+                </div>
+                <input
+                  value={payReference}
+                  onChange={(e) => setPayReference(e.target.value)}
+                  placeholder="Reference # (optional)"
+                  style={{ marginTop: 8 }}
+                />
               </div>
             ))}
           {bill.pdfBlob && (
@@ -295,11 +304,11 @@ export default function WorkOrderDetail() {
             </div>
           )}
           <button
-            className="btn btn--ghost"
+            className={bill.pdfBlob ? 'btn btn--ghost' : 'btn'}
             style={{ marginTop: 10 }}
             onClick={() => navigate(`/work-orders/${id}/bill`)}
           >
-            <Icon name="pencil" /> Edit bill
+            <Icon name={bill.pdfBlob ? 'pencil' : 'file-text'} /> {bill.pdfBlob ? 'Edit bill' : 'Generate PDF'}
           </button>
         </div>
       ) : (
