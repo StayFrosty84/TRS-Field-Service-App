@@ -84,34 +84,46 @@ export async function generateBillPdf({ profile, account, contact, workOrder, bi
   // Continue below whichever is taller: the text block or the logo.
   y = Math.max(infoY - 4, y + logoH);
 
-  // ---- Title ----
+  // ---- Title + meta band ----
   line(22);
   doc.setDrawColor(220).line(M, y, right, y);
-  line(10);
+  line(18); // clearance below the divider so the first meta line never rides up against it
+  const bandTop = y;
+
   const isEstimate = Boolean(workOrder?.isEstimate);
   doc.setFont('helvetica', 'bold').setFontSize(isEstimate ? 26 : 20);
   if (isEstimate) doc.setTextColor(202, 138, 4); // amber so it reads as a quote, not a bill
-  doc.text(isEstimate ? 'ESTIMATE' : 'BILL OF SALE', M, y + 8);
+  doc.text(isEstimate ? 'ESTIMATE' : 'BILL OF SALE', M, bandTop + 8);
   doc.setTextColor(0);
-  // Meta block (right column) sits below the divider, aligned beside the title — using
-  // positive offsets from `y` so it never overlaps the rule / seller block above it.
+
+  // Right-aligned meta block: stacked lines from a shared top anchor with even spacing.
   doc.setFont('helvetica', 'normal').setFontSize(10).setTextColor(90);
-  if (bill?.billNumber) {
-    doc.text(`Bill #: ${bill.billNumber}`, right, y + 2, { align: 'right' });
-  }
-  doc.text(`Date: ${fmtDate(bill?.billDate || bill?.pdfGeneratedAt || Date.now())}`, right, y + 15, { align: 'right' });
-  doc.text(`Service: ${fmtDate(workOrder?.serviceDate)}`, right, y + 28, { align: 'right' });
+  const META_LH = 13;
+  const metaLines = [];
+  if (bill?.billNumber) metaLines.push(`Bill #: ${bill.billNumber}`);
+  metaLines.push(`Date: ${fmtDate(bill?.billDate || bill?.pdfGeneratedAt || Date.now())}`);
+  metaLines.push(`Service: ${fmtDate(workOrder?.serviceDate)}`);
+  let metaY = bandTop + 2;
+  metaLines.forEach((t) => {
+    doc.text(t, right, metaY, { align: 'right' });
+    metaY += META_LH;
+  });
   doc.setTextColor(0);
-  // PAID marker (right column, below the dates so it doesn't collide with "Bill To")
+
+  // PAID marker, below the dates so it never collides with the meta lines or "Bill To".
   const isPaid = bill?.paymentStatus === 'paid';
   if (isPaid) {
     doc.setFont('helvetica', 'bold').setFontSize(12).setTextColor(21, 128, 61);
-    doc.text(`PAID${bill.paymentMethod ? ` (${bill.paymentMethod})` : ''}`, right, y + 44, {
+    doc.text(`PAID${bill.paymentMethod ? ` (${bill.paymentMethod})` : ''}`, right, metaY + 2, {
       align: 'right',
     });
+    metaY += 18;
     doc.setTextColor(0);
   }
-  line(isPaid ? 60 : 44);
+
+  // Continue below whichever column is taller: the title or the meta block.
+  y = Math.max(bandTop + 8, metaY - META_LH);
+  line(20);
 
   // ---- Bill To + Service (two columns; each line wraps within its column) ----
   const colW = (right - M - 16) / 2;
