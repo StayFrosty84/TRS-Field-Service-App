@@ -43,7 +43,6 @@ export default function BillEditor() {
   const [busy, setBusy] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [result, setResult] = useState(null); // { pdfBlob, recipients }
-  const [billId, setBillId] = useState(null);
   const [pdfStale, setPdfStale] = useState(false);
 
   useEffect(() => {
@@ -58,7 +57,6 @@ export default function BillEditor() {
       setCtx({ order, account, contact, photos, profile, bill });
       const defaultCcRate = profile?.ccFeeRate != null ? String(profile.ccFeeRate) : '3';
       if (bill) {
-        setBillId(bill.id);
         setItems(bill.lineItems?.length ? bill.lineItems.map((li) => ({ id: crypto.randomUUID(), ...li })) : [blankItem()]);
         setTaxRate(bill.taxRate ? String(bill.taxRate) : '');
         setBillDate(toDateInput(bill.billDate || bill.pdfGeneratedAt || Date.now()));
@@ -129,10 +127,7 @@ export default function BillEditor() {
       };
       await saveBill(id, record);
       const saved = await getBillForWorkOrder(id);
-      if (saved) {
-        setBillId(saved.id);
-        if (saved.pdfGeneratedAt) setPdfStale(true); // data changed after a PDF existed
-      }
+      if (saved?.pdfGeneratedAt) setPdfStale(true); // data changed after a PDF existed
     },
     { enabled: step === 'edit' && billHasContent(items) }
   );
