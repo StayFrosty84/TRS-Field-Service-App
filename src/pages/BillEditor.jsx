@@ -36,6 +36,7 @@ export default function BillEditor() {
   const [ccFeeRate, setCcFeeRate] = useState('3');
   const [paymentStatus, setPaymentStatus] = useState('unpaid');
   const [paymentMethod, setPaymentMethod] = useState('');
+  const [paymentReference, setPaymentReference] = useState('');
   const [existingSignature, setExistingSignature] = useState(null);
   const [busy, setBusy] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
@@ -60,6 +61,7 @@ export default function BillEditor() {
         setCcFeeRate(bill.ccFeeRate != null ? String(bill.ccFeeRate) : defaultCcRate);
         setPaymentStatus(bill.paymentStatus || 'unpaid');
         setPaymentMethod(bill.paymentMethod || '');
+        setPaymentReference(bill.paymentReference || '');
         if (bill.signatureBlob) setExistingSignature(bill.signatureBlob);
       } else {
         setCcFeeRate(defaultCcRate);
@@ -139,6 +141,7 @@ export default function BillEditor() {
         billDate: fromDateInput(billDate) || Date.now(),
         paymentStatus: features.billing ? paymentStatus : 'unpaid',
         paymentMethod: features.billing && paymentStatus === 'paid' ? paymentMethod : '',
+        paymentReference: features.billing && paymentStatus === 'paid' ? paymentReference.trim() : '',
         signatureBlob,
         recipients,
         pdfGeneratedAt: Date.now(),
@@ -379,14 +382,22 @@ export default function BillEditor() {
             ))}
           </div>
           {paymentStatus === 'paid' && (
-            <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-              <option value="">Payment method…</option>
-              <option>Cash</option>
-              <option>Check</option>
-              <option>Card</option>
-              <option>Zelle</option>
-              <option>Other</option>
-            </select>
+            <>
+              <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+                <option value="">Payment method…</option>
+                <option>Cash</option>
+                <option>Check</option>
+                <option>Card</option>
+                <option>Zelle</option>
+                <option>Other</option>
+              </select>
+              <label>Reference #</label>
+              <input
+                value={paymentReference}
+                onChange={(e) => setPaymentReference(e.target.value)}
+                placeholder="Check #, transaction ID, etc."
+              />
+            </>
           )}
         </>
       )}
