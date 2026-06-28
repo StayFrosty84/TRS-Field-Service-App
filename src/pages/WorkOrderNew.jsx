@@ -5,6 +5,7 @@ import { db, createAccount, createContact, createWorkOrder, addPhoto, listWorkTy
 import { toDateInput, fromDateInput } from '../lib/format.js';
 import { useToast } from '../components/Toast.jsx';
 import AddressAutocomplete from '../components/AddressAutocomplete.jsx';
+import LocationMap from '../components/LocationMap.jsx';
 import Icon from '../components/Icon.jsx';
 
 export default function WorkOrderNew() {
@@ -182,6 +183,7 @@ export default function WorkOrderNew() {
           <Icon name="building" size={16} /> Shop
         </button>
       </div>
+      <LocationMap text={locationText} lat={gps?.lat} lng={gps?.lng} />
 
       <label>Service date</label>
       <input type="date" value={serviceDate} onChange={(e) => setServiceDate(e.target.value)} />
