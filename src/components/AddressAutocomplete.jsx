@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import { useGooglePlaces } from '../lib/addrProvider.js';
+import { fetchSuggestions as googleSuggestions, resolvePick as googleResolve } from '../lib/googlePlaces.js';
 
 // Keyless address autocomplete via Photon (OpenStreetMap). No API key, CORS-enabled.
 // Falls back gracefully: typing always works, and if the request fails (offline) the
-// user just keeps whatever they typed.
+// user just keeps whatever they typed. When the user opts into Google in Settings we use
+// that instead, but still fall back to Photon if a Google request fails.
 const PHOTON_URL = 'https://photon.komoot.io/api/';
 
 // Results are limited to the US + Canada and ranked toward Western New York
@@ -53,10 +56,30 @@ export default function AddressAutocomplete({ value, onChangeText, onPick, place
   }
 
   async function search(q) {
+    setLoading(true);
+    try {
+      if (useGooglePlaces()) {
+        try {
+          const items = await googleSuggestions(q);
+          // Coordinates are fetched on pick; carry a resolver per suggestion.
+          const mapped = items.map((it) => ({ label: it.label, resolve: () => googleResolve(it) }));
+          setSuggestions(mapped);
+          setOpen(mapped.length > 0);
+          return;
+        } catch {
+          // Google failed (offline / bad key / quota) → fall through to Photon.
+        }
+      }
+      await searchPhoton(q);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function searchPhoton(q) {
     if (abortRef.current) abortRef.current.abort();
     const ac = new AbortController();
     abortRef.current = ac;
-    setLoading(true);
     try {
       const params = new URLSearchParams({
         q,
@@ -83,15 +106,22 @@ export default function AddressAutocomplete({ value, onChangeText, onPick, place
         setSuggestions([]);
         setOpen(false);
       }
-    } finally {
-      setLoading(false);
     }
   }
 
-  function pick(s) {
-    onPick(s);
+  async function pick(s) {
     setOpen(false);
     setSuggestions([]);
+    if (s.resolve) {
+      // Google suggestion: fetch its coordinates now. If that fails, keep the label text.
+      try {
+        onPick(await s.resolve());
+      } catch {
+        onPick({ label: s.label });
+      }
+      return;
+    }
+    onPick(s);
   }
 
   return (

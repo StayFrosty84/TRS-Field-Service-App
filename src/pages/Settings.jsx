@@ -7,6 +7,12 @@ import { shareFile, openBlob } from '../lib/share.js';
 import { computeTotals } from '../lib/format.js';
 import { sampleBillData } from '../lib/sampleBill.js';
 import { getTheme, setTheme, getContrast, setContrast, getScale, setScale } from '../lib/theme.js';
+import {
+  getGoogleEnabled,
+  setGoogleEnabled,
+  getGoogleKey,
+  setGoogleKey,
+} from '../lib/addrProvider.js';
 import { useToast } from '../components/Toast.jsx';
 import CatalogManager from '../components/CatalogManager.jsx';
 import WorkTypeManager from '../components/WorkTypeManager.jsx';
@@ -32,6 +38,8 @@ export default function Settings() {
   const [theme, setThemeState] = useState(getTheme());
   const [contrast, setContrastState] = useState(getContrast());
   const [scale, setScaleState] = useState(getScale());
+  const [googleOn, setGoogleOnState] = useState(getGoogleEnabled());
+  const [googleKey, setGoogleKeyState] = useState(getGoogleKey());
   const features = useFeatures();
 
   function chooseTheme(t) {
@@ -47,6 +55,16 @@ export default function Settings() {
   function chooseScale(s) {
     setScale(s);
     setScaleState(s);
+  }
+
+  function chooseGoogle(on) {
+    setGoogleEnabled(on);
+    setGoogleOnState(on);
+  }
+
+  function changeGoogleKey(key) {
+    setGoogleKey(key);
+    setGoogleKeyState(key);
   }
 
   async function toggleFeature(key, value) {
@@ -192,6 +210,33 @@ export default function Settings() {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="section-title">Address search</div>
+      <div className="card">
+        <ToggleRow
+          label="Use Google address search"
+          hint="More accurate suggestions. Needs your own Google Maps API key (free tier). Stored on this device only — never included in backups. Falls back to the free search when off or unavailable."
+          checked={googleOn}
+          onChange={chooseGoogle}
+        />
+        {googleOn && (
+          <>
+            <label>Google Maps API key</label>
+            <input
+              type="password"
+              value={googleKey}
+              onChange={(e) => changeGoogleKey(e.target.value)}
+              placeholder="Paste your API key"
+              autoComplete="off"
+            />
+            <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+              In the Google Cloud console: create an API key, enable “Places API (New)” and
+              “Maps Embed API” (for the inline map), and restrict the key to your app’s
+              website. It stays on this device.
+            </p>
+          </>
+        )}
       </div>
 
       <details>
