@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { money, fmtDate, getPhones, fmtPhone } from './format.js';
 import { compressForPdf } from './image.js';
+import { paidLine, infoLines } from './pdfText.js';
 
 export function blobToDataURL(blob) {
   return new Promise((resolve, reject) => {
@@ -111,12 +112,10 @@ export async function generateBillPdf({ profile, account, contact, workOrder, bi
   doc.setTextColor(0);
 
   // PAID marker, below the dates so it never collides with the meta lines or "Bill To".
-  const isPaid = bill?.paymentStatus === 'paid';
-  if (isPaid) {
+  const paid = paidLine(bill);
+  if (paid) {
     doc.setFont('helvetica', 'bold').setFontSize(12).setTextColor(21, 128, 61);
-    doc.text(`PAID${bill.paymentMethod ? ` (${bill.paymentMethod})` : ''}`, right, metaY + 2, {
-      align: 'right',
-    });
+    doc.text(paid, right, metaY + 2, { align: 'right' });
     metaY += 18;
     doc.setTextColor(0);
   }
@@ -158,6 +157,7 @@ export async function generateBillPdf({ profile, account, contact, workOrder, bi
   const svc = [
     workOrder?.location?.text ? `Location: ${workOrder.location.text}` : null,
     workOrder?.location?.lat ? `GPS: ${workOrder.location.lat.toFixed(5)}, ${workOrder.location.lng.toFixed(5)}` : null,
+    ...infoLines(workOrder),
   ];
 
   const billToEnd = renderColumn('Bill To', billTo, M);
