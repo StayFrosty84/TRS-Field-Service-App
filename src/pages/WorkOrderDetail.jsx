@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useAutosave } from '../lib/useAutosave.js';
 import {
   db,
   updateWorkOrder,
@@ -34,6 +35,8 @@ export default function WorkOrderDetail() {
   const [gps, setGps] = useState(null);
   const [serviceDate, setServiceDate] = useState('');
   const [isEstimate, setIsEstimate] = useState(false);
+  const [unitNumber, setUnitNumber] = useState('');
+  const [referenceNumber, setReferenceNumber] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [payMethod, setPayMethod] = useState('Cash');
   const [markupPhoto, setMarkupPhoto] = useState(null); // { id, blob }
@@ -62,24 +65,45 @@ export default function WorkOrderDetail() {
       );
       setServiceDate(toDateInput(data.order.serviceDate));
       setIsEstimate(Boolean(data.order.isEstimate));
+      setUnitNumber(data.order.unitNumber || '');
+      setReferenceNumber(data.order.referenceNumber || '');
       setLoaded(true);
     }
   }, [data, loaded]);
 
+  const order = data?.order;
+  const account = data?.account;
+  const contact = data?.contact;
+  const photos = data?.photos || [];
+  const bill = data?.bill;
+
+  const autosaveData = {
+    issue,
+    notes,
+    locationText,
+    gps,
+    serviceDate,
+    isEstimate,
+    unitNumber,
+    referenceNumber,
+  };
+  const { status: saveStatus, flush: flushSave } = useAutosave(
+    autosaveData,
+    (d) =>
+      updateWorkOrder(id, {
+        issue: d.issue.trim(),
+        notes: d.notes.trim(),
+        location: { text: d.locationText.trim(), ...(d.gps || {}) },
+        serviceDate: fromDateInput(d.serviceDate) || order?.serviceDate,
+        isEstimate: d.isEstimate,
+        unitNumber: d.unitNumber.trim(),
+        referenceNumber: d.referenceNumber.trim(),
+      }),
+    { enabled: loaded }
+  );
+
   if (!data) return null;
   if (data.missing) return <p className="muted">Work order not found.</p>;
-  const { order, account, contact, photos, bill } = data;
-
-  async function saveEdits() {
-    await updateWorkOrder(id, {
-      issue: issue.trim(),
-      notes: notes.trim(),
-      location: { text: locationText.trim(), ...(gps || {}) },
-      serviceDate: fromDateInput(serviceDate) || order.serviceDate,
-      isEstimate,
-    });
-    toast('Saved');
-  }
 
   async function duplicate() {
     const newId = await createWorkOrder({
@@ -144,6 +168,7 @@ export default function WorkOrderDetail() {
         )}
       </div>
 
+      <div onBlur={flushSave}>
       <label>Location</label>
       <AddressAutocomplete
         value={locationText}
@@ -173,9 +198,14 @@ export default function WorkOrderDetail() {
       <textarea value={issue} onChange={(e) => setIssue(e.target.value)} />
       <label>Internal notes</label>
       <textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
-      <button className="btn btn--ghost btn--sm" onClick={saveEdits} style={{ marginTop: 8 }}>
-        Save changes
-      </button>
+      <label>Unit #</label>
+      <input value={unitNumber} onChange={(e) => setUnitNumber(e.target.value)} />
+      <label>Reference #</label>
+      <input value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} />
+      <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>
+        {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved ✓' : 'Changes save automatically'}
+      </p>
+      </div>
 
       {workTypes.length > 0 && (
         <>
