@@ -27,6 +27,8 @@ export default function WorkOrderNew() {
   const [gps, setGps] = useState(null);
   const [serviceDate, setServiceDate] = useState(toDateInput(Date.now()));
   const [issue, setIssue] = useState('');
+  const [unitNumber, setUnitNumber] = useState('');
+  const [referenceNumber, setReferenceNumber] = useState('');
   const [workTypeId, setWorkTypeId] = useState('');
   const [isEstimate, setIsEstimate] = useState(false);
   const [photos, setPhotos] = useState([]); // { id, blob, url }
@@ -93,6 +95,8 @@ export default function WorkOrderNew() {
         location: { text: locationText.trim(), ...(gps || {}) },
         serviceDate: fromDateInput(serviceDate) || Date.now(),
         issue: issue.trim(),
+        unitNumber: unitNumber.trim(),
+        referenceNumber: referenceNumber.trim(),
         isEstimate,
         workTypeId: workTypeId || null,
         templateItems: workTypes.find((w) => w.id === workTypeId)?.items || [],
@@ -184,6 +188,11 @@ export default function WorkOrderNew() {
         </button>
       </div>
       <LocationMap text={locationText} lat={gps?.lat} lng={gps?.lng} />
+
+      <label>Unit #</label>
+      <input value={unitNumber} onChange={(e) => setUnitNumber(e.target.value)} />
+      <label>Reference #</label>
+      <input value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} />
 
       <label>Service date</label>
       <input type="date" value={serviceDate} onChange={(e) => setServiceDate(e.target.value)} />
