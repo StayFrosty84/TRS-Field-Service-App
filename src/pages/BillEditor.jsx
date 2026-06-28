@@ -13,6 +13,8 @@ import { blobToDataURL, generateBillPdf } from '../lib/pdf.js';
 import { shareFile, openBlob, copyText } from '../lib/share.js';
 import { useToast } from '../components/Toast.jsx';
 import { useFeatures } from '../lib/useFeatures.js';
+import { useAutosave } from '../lib/useAutosave.js';
+import { cleanLineItems, billHasContent } from '../lib/bill.js';
 import SignaturePadField from '../components/SignaturePadField.jsx';
 import CatalogPicker from '../components/CatalogPicker.jsx';
 import SortableList from '../components/SortableList.jsx';
@@ -41,6 +43,8 @@ export default function BillEditor() {
   const [busy, setBusy] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [result, setResult] = useState(null); // { pdfBlob, recipients }
+  const [billId, setBillId] = useState(null);
+  const [pdfStale, setPdfStale] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -54,6 +58,7 @@ export default function BillEditor() {
       setCtx({ order, account, contact, photos, profile, bill });
       const defaultCcRate = profile?.ccFeeRate != null ? String(profile.ccFeeRate) : '3';
       if (bill) {
+        setBillId(bill.id);
         setItems(bill.lineItems?.length ? bill.lineItems.map((li) => ({ id: crypto.randomUUID(), ...li })) : [blankItem()]);
         setTaxRate(bill.taxRate ? String(bill.taxRate) : '');
         setBillDate(toDateInput(bill.billDate || bill.pdfGeneratedAt || Date.now()));
@@ -86,18 +91,58 @@ export default function BillEditor() {
     blobToDataURL(existingSignature).then((url) => sigRef.current?.fromDataURL(url));
   }, [step, existingSignature]);
 
+  // Auto-save: runs before any early return to satisfy rules-of-hooks.
+  const ccOnLive = features.cardFee && ccFeeApplied;
+  const liveClean = cleanLineItems(items);
+  const autosaveData = {
+    items: liveClean,
+    taxRate,
+    ccFeeApplied: ccOnLive,
+    ccFeeRate,
+    billDate,
+    paymentStatus,
+    paymentMethod,
+    paymentReference,
+  };
+  const { status: saveStatus, flush: flushSave } = useAutosave(
+    autosaveData,
+    async (d) => {
+      const { subtotal, taxAmount, ccFeeAmount, total } = computeTotals(
+        d.items,
+        d.taxRate,
+        d.ccFeeRate,
+        d.ccFeeApplied
+      );
+      const record = {
+        lineItems: d.items,
+        taxRate: Number(d.taxRate) || 0,
+        subtotal,
+        taxAmount,
+        ccFeeApplied: d.ccFeeApplied,
+        ccFeeRate: d.ccFeeApplied ? Number(d.ccFeeRate) || 0 : 0,
+        ccFeeAmount,
+        total,
+        billDate: fromDateInput(d.billDate) || Date.now(),
+        paymentStatus: features.billing ? d.paymentStatus : 'unpaid',
+        paymentMethod: features.billing && d.paymentStatus === 'paid' ? d.paymentMethod : '',
+        paymentReference: features.billing && d.paymentStatus === 'paid' ? d.paymentReference.trim() : '',
+      };
+      await saveBill(id, record);
+      const saved = await getBillForWorkOrder(id);
+      if (saved) {
+        setBillId(saved.id);
+        if (saved.pdfGeneratedAt) setPdfStale(true); // data changed after a PDF existed
+      }
+    },
+    { enabled: step === 'edit' && billHasContent(items) }
+  );
+
   if (!ctx) return null;
   if (ctx.missing) return <p className="muted">Work order not found.</p>;
   const { profile, account, contact, order, photos } = ctx;
 
   const totals = computeTotals(items, taxRate, ccFeeRate, features.cardFee && ccFeeApplied);
-  const cleanItems = items
-    .filter((it) => it.description.trim() || Number(it.unitPrice) > 0)
-    .map(({ description, qty, unitPrice }) => ({
-      description: description.trim(),
-      qty: Number(qty) || 0,
-      unitPrice: Number(unitPrice) || 0,
-    }));
+  const cleanItems = cleanLineItems(items);
 
   const setItem = (itemId, key, val) =>
     setItems((arr) => arr.map((it) => (it.id === itemId ? { ...it, [key]: val } : it)));
@@ -149,6 +194,7 @@ export default function BillEditor() {
       const savedId = await saveBill(id, billRecord);
       if (order.status === 'open') await updateWorkOrder(id, { status: 'completed', completedAt: Date.now() });
       const saved = await getBillForWorkOrder(id);
+      setPdfStale(false);
 
       const pdfBlob = await generateBillPdf({
         profile,
@@ -283,7 +329,7 @@ export default function BillEditor() {
 
   // ---------- EDIT ----------
   return (
-    <>
+    <div onBlur={flushSave}>
       <h1 style={{ marginTop: 4 }}>{docNoun}</h1>
       <p className="muted">
         {account?.name}
@@ -402,6 +448,15 @@ export default function BillEditor() {
         </>
       )}
 
+      <p className="muted" style={{ fontSize: 13 }}>
+        {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved ✓' : 'Changes save automatically once you add a line item'}
+      </p>
+      {pdfStale && (
+        <p className="muted" style={{ fontSize: 13, color: 'var(--badge-open-fg)' }}>
+          PDF out of date — regenerate to update.
+        </p>
+      )}
+
       <div className="btn-row">
         <button className="btn" onClick={goReview}>
           Review &amp; sign <Icon name="arrow-right" />
@@ -409,7 +464,7 @@ export default function BillEditor() {
       </div>
 
       {catalogOpen && <CatalogPicker onPick={addFromCatalog} onClose={() => setCatalogOpen(false)} />}
-    </>
+    </div>
   );
 }
 
