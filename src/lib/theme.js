@@ -1,5 +1,8 @@
-// Light/Dark theme handling. Preference is device-specific (localStorage), not backed up.
+// Light/Dark theme + accessibility (high contrast, UI zoom) handling.
+// All preferences are device-specific (localStorage), not backed up.
 const THEME_KEY = 'fs-theme';
+const CONTRAST_KEY = 'fs-contrast';
+const SCALE_KEY = 'fs-scale';
 
 // Status-bar / PWA theme-color per resolved theme (matches the app background).
 const META_COLOR = { light: '#ffffff', dark: '#0b1220' };
@@ -28,9 +31,35 @@ export function setTheme(theme) {
   applyTheme(theme);
 }
 
+// ---- Accessibility: high contrast (normal | high) ----
+export function getContrast() {
+  return localStorage.getItem(CONTRAST_KEY) || 'normal';
+}
+export function applyContrast(contrast = getContrast()) {
+  document.documentElement.dataset.contrast = contrast;
+}
+export function setContrast(contrast) {
+  localStorage.setItem(CONTRAST_KEY, contrast);
+  applyContrast(contrast);
+}
+
+// ---- Accessibility: UI zoom (normal | large | xl) ----
+export function getScale() {
+  return localStorage.getItem(SCALE_KEY) || 'normal';
+}
+export function applyScale(scale = getScale()) {
+  document.documentElement.dataset.scale = scale;
+}
+export function setScale(scale) {
+  localStorage.setItem(SCALE_KEY, scale);
+  applyScale(scale);
+}
+
 let mediaListener = null;
 export function initTheme() {
   applyTheme();
+  applyContrast();
+  applyScale();
   const mq = window.matchMedia('(prefers-color-scheme: dark)');
   if (mediaListener) mq.removeEventListener('change', mediaListener);
   mediaListener = () => {

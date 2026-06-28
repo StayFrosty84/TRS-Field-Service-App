@@ -6,7 +6,7 @@ import { exportBackup, importBackup, backupFilename } from '../lib/backup.js';
 import { shareFile, openBlob } from '../lib/share.js';
 import { computeTotals } from '../lib/format.js';
 import { sampleBillData } from '../lib/sampleBill.js';
-import { getTheme, setTheme } from '../lib/theme.js';
+import { getTheme, setTheme, getContrast, setContrast, getScale, setScale } from '../lib/theme.js';
 import { useToast } from '../components/Toast.jsx';
 import CatalogManager from '../components/CatalogManager.jsx';
 import WorkTypeManager from '../components/WorkTypeManager.jsx';
@@ -30,11 +30,23 @@ export default function Settings() {
   const [logoBlob, setLogoBlob] = useState(null);
   const [logoUrl, setLogoUrl] = useState(null);
   const [theme, setThemeState] = useState(getTheme());
+  const [contrast, setContrastState] = useState(getContrast());
+  const [scale, setScaleState] = useState(getScale());
   const features = useFeatures();
 
   function chooseTheme(t) {
     setTheme(t);
     setThemeState(t);
+  }
+
+  function chooseContrast(c) {
+    setContrast(c);
+    setContrastState(c);
+  }
+
+  function chooseScale(s) {
+    setScale(s);
+    setScaleState(s);
   }
 
   async function toggleFeature(key, value) {
@@ -154,6 +166,32 @@ export default function Settings() {
             {label}
           </button>
         ))}
+      </div>
+
+      <div className="section-title">Accessibility</div>
+      <div className="card">
+        <ToggleRow
+          label="High contrast"
+          hint="Stronger text and borders for easier reading in bright sun."
+          checked={contrast === 'high'}
+          onChange={(v) => chooseContrast(v ? 'high' : 'normal')}
+        />
+        <label>Text size</label>
+        <div className="chips">
+          {[
+            ['normal', 'Normal'],
+            ['large', 'Large'],
+            ['xl', 'Larger'],
+          ].map(([val, label]) => (
+            <button
+              key={val}
+              className={`chip ${scale === val ? 'chip--active' : ''}`}
+              onClick={() => chooseScale(val)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <details>

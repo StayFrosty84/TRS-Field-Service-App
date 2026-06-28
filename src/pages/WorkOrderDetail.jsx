@@ -15,6 +15,7 @@ import {
   updatePhoto,
 } from '../db/db.js';
 import { toDateInput, fromDateInput, money, getPhones, telHref, fmtPhone } from '../lib/format.js';
+import { mapsHref } from '../lib/maps.js';
 import { shareFile, openBlob } from '../lib/share.js';
 import { useToast } from '../components/Toast.jsx';
 import { useFeatures } from '../lib/useFeatures.js';
@@ -156,6 +157,22 @@ export default function WorkOrderDetail() {
           setGps(lat != null && lng != null ? { lat, lng } : null);
         }}
       />
+      {(locationText.trim() || gps) && (
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          style={{ marginTop: 8 }}
+          onClick={() => {
+            const href = mapsHref(
+              { text: locationText, ...(gps || {}) },
+              { ios: /iPad|iPhone|iPod/.test(navigator.userAgent) }
+            );
+            if (href) window.open(href, '_blank');
+          }}
+        >
+          <Icon name="map-pin" /> Navigate
+        </button>
+      )}
       <label>Service date</label>
       <input type="date" value={serviceDate} onChange={(e) => setServiceDate(e.target.value)} />
       <label className="row" style={{ gap: 10, alignItems: 'center', marginTop: 12 }}>

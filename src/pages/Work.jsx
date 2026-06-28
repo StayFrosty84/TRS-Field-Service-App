@@ -4,8 +4,18 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, markBillPaid } from '../db/db.js';
 import { fmtDate, money } from '../lib/format.js';
 import { useFeatures } from '../lib/useFeatures.js';
+import { filterWorkOrders } from '../lib/workFilter.js';
 import SearchBar from '../components/SearchBar.jsx';
 import Icon from '../components/Icon.jsx';
+
+const DATE_CHIPS = [
+  ['any', 'Any date'],
+  ['today', 'Today'],
+  ['7d', '7 days'],
+  ['30d', '30 days'],
+  ['month', 'This month'],
+  ['quarter', 'This quarter'],
+];
 
 export default function Work() {
   const navigate = useNavigate();
@@ -13,6 +23,7 @@ export default function Work() {
   const features = useFeatures();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState(location.state?.filter || 'all'); // all | open | completed | unpaid
+  const [dateKey, setDateKey] = useState('any'); // any | today | 7d | 30d | month | quarter
 
   const data = useLiveQuery(async () => {
     const orders = await db.workOrders.orderBy('createdAt').reverse().toArray();
@@ -24,23 +35,14 @@ export default function Work() {
 
   const filtered = useMemo(() => {
     if (!data) return [];
-    const q = query.trim().toLowerCase();
-    return data.orders.filter((o) => {
-      const bill = data.billByWo[o.id];
-      if (filter === 'open' || filter === 'completed') {
-        if (o.status !== filter) return false;
-      } else if (filter === 'unpaid') {
-        if (!bill || bill.paymentStatus === 'paid') return false;
-      }
-      if (!q) return true;
-      const acct = data.accounts[o.accountId]?.name || '';
-      return (
-        acct.toLowerCase().includes(q) ||
-        (o.issue || '').toLowerCase().includes(q) ||
-        (o.location?.text || '').toLowerCase().includes(q)
-      );
+    return filterWorkOrders(data.orders, {
+      query,
+      status: filter,
+      dateKey,
+      billByWo: data.billByWo,
+      accounts: data.accounts,
     });
-  }, [data, query, filter]);
+  }, [data, query, filter, dateKey]);
 
   if (!data) return null;
   const { orders, accounts, billByWo } = data;
@@ -63,10 +65,17 @@ export default function Work() {
 
       {orders.length > 0 && (
         <>
-          <SearchBar value={query} onChange={setQuery} placeholder="Search jobs, customers, locations…" />
+          <SearchBar value={query} onChange={setQuery} placeholder="Search jobs, customers, bill #…" />
           <div className="chips">
             {chips.map(([val, label]) => (
               <button key={val} className={`chip ${filter === val ? 'chip--active' : ''}`} onClick={() => setFilter(val)}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="chips">
+            {DATE_CHIPS.map(([val, label]) => (
+              <button key={val} className={`chip ${dateKey === val ? 'chip--active' : ''}`} onClick={() => setDateKey(val)}>
                 {label}
               </button>
             ))}

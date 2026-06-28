@@ -92,23 +92,25 @@ export async function generateBillPdf({ profile, account, contact, workOrder, bi
   if (isEstimate) doc.setTextColor(202, 138, 4); // amber so it reads as a quote, not a bill
   doc.text(isEstimate ? 'ESTIMATE' : 'BILL OF SALE', M, y + 8);
   doc.setTextColor(0);
+  // Meta block (right column) sits below the divider, aligned beside the title — using
+  // positive offsets from `y` so it never overlaps the rule / seller block above it.
   doc.setFont('helvetica', 'normal').setFontSize(10).setTextColor(90);
   if (bill?.billNumber) {
-    doc.text(`Bill #: ${bill.billNumber}`, right, y - 16, { align: 'right' });
+    doc.text(`Bill #: ${bill.billNumber}`, right, y + 2, { align: 'right' });
   }
-  doc.text(`Date: ${fmtDate(bill?.billDate || bill?.pdfGeneratedAt || Date.now())}`, right, y - 4, { align: 'right' });
-  doc.text(`Service: ${fmtDate(workOrder?.serviceDate)}`, right, y + 9, { align: 'right' });
+  doc.text(`Date: ${fmtDate(bill?.billDate || bill?.pdfGeneratedAt || Date.now())}`, right, y + 15, { align: 'right' });
+  doc.text(`Service: ${fmtDate(workOrder?.serviceDate)}`, right, y + 28, { align: 'right' });
   doc.setTextColor(0);
   // PAID marker (right column, below the dates so it doesn't collide with "Bill To")
   const isPaid = bill?.paymentStatus === 'paid';
   if (isPaid) {
     doc.setFont('helvetica', 'bold').setFontSize(12).setTextColor(21, 128, 61);
-    doc.text(`PAID${bill.paymentMethod ? ` (${bill.paymentMethod})` : ''}`, right, y + 22, {
+    doc.text(`PAID${bill.paymentMethod ? ` (${bill.paymentMethod})` : ''}`, right, y + 44, {
       align: 'right',
     });
     doc.setTextColor(0);
   }
-  line(isPaid ? 36 : 26);
+  line(isPaid ? 60 : 44);
 
   // ---- Bill To + Service (two columns; each line wraps within its column) ----
   const colW = (right - M - 16) / 2;

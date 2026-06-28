@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db.js';
 import { money, fmtDate } from '../lib/format.js';
+import { unpaidBills } from '../lib/unpaid.js';
 import { useFeatures } from '../lib/useFeatures.js';
 import BackupReminder from '../components/BackupReminder.jsx';
 import Icon from '../components/Icon.jsx';
@@ -82,6 +83,23 @@ export default function Home() {
           </button>
         )}
       </div>
+
+      {features.billing && stats.outstanding > 0 && (
+        <>
+          <div className="section-title">Who owes me money</div>
+          <div className="list">
+            {unpaidBills(bills, ordersById, accounts).map((u) => (
+              <Link key={u.workOrderId} className="list-item" to={`/work-orders/${u.workOrderId}`}>
+                <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                  <p className="list-item__title">{u.name}</p>
+                  <strong>{money(u.total)}</strong>
+                </div>
+                <p className="list-item__sub">Unpaid · {u.ageDays}d old</p>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
 
       {features.billing && bills.length > 0 && (
         <>

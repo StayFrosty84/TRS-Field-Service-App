@@ -3,6 +3,16 @@
   --radius: 14px;
   --tap: 48px;
   --nav-h: 64px;
+  --ui-scale: 1;
+}
+
+/* Accessibility: UI zoom. `zoom` reflows (unlike transform), so the whole px-based
+   layout — including the fixed bottom nav — scales up without horizontal scroll. */
+:root[data-scale='large'] {
+  --ui-scale: 1.15;
+}
+:root[data-scale='xl'] {
+  --ui-scale: 1.3;
 }
 
 /* Light theme (clean & professional) */
@@ -47,6 +57,29 @@
   --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.55);
 }
 
+/* Accessibility: high contrast. Override the color tokens toward maximum contrast;
+   every component inherits these so nothing else needs to change. */
+:root[data-contrast='high'][data-theme='light'] {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #e2e8f0;
+  --border: #1f2937;
+  --text: #000000;
+  --muted: #1f2937;
+  --primary: #0b5d54;
+  --primary-press: #073d37;
+}
+:root[data-contrast='high'][data-theme='dark'] {
+  --bg: #000000;
+  --surface: #0b1220;
+  --surface-2: #1b2740;
+  --border: #c3cee0;
+  --text: #ffffff;
+  --muted: #e2e8f0;
+  --primary: #2dd4bf;
+  --primary-press: #14b8a6;
+}
+
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
@@ -67,6 +100,7 @@ body {
   line-height: 1.45;
   overscroll-behavior-y: none;
   -webkit-font-smoothing: antialiased;
+  zoom: var(--ui-scale, 1);
 }
 
 .app {

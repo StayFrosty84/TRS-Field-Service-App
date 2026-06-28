@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db.js';
 import { money, fmtDate } from '../lib/format.js';
+import { salesTaxSummary } from '../lib/salesTax.js';
 import { shareFile } from '../lib/share.js';
 import { useToast } from '../components/Toast.jsx';
 import Icon from '../components/Icon.jsx';
@@ -48,7 +49,8 @@ export default function Reports() {
     }
     const accountRows = Object.entries(byAccount).sort((a, b) => b[1] - a[1]);
     const maxMonth = Math.max(1, ...months.map((m) => m.total));
-    return { mtdBilled, mtdPaid, ytdBilled, ytdPaid, accountRows, months, maxMonth };
+    const tax = salesTaxSummary(data.bills);
+    return { mtdBilled, mtdPaid, ytdBilled, ytdPaid, accountRows, months, maxMonth, tax };
   }, [data]);
 
   if (!data) return null;
@@ -123,6 +125,29 @@ export default function Reports() {
           <div className="stat__value">{money(r.ytdPaid)}</div>
         </div>
       </div>
+
+      <div className="section-title">Sales tax</div>
+      <div className="stat-grid">
+        <div className="stat">
+          <div className="stat__label">{r.tax.quarter.label} charged</div>
+          <div className="stat__value">{money(r.tax.quarter.charged)}</div>
+        </div>
+        <div className="stat">
+          <div className="stat__label">{r.tax.quarter.label} collected</div>
+          <div className="stat__value">{money(r.tax.quarter.collected)}</div>
+        </div>
+        <div className="stat">
+          <div className="stat__label">{r.tax.year.label} charged</div>
+          <div className="stat__value">{money(r.tax.year.charged)}</div>
+        </div>
+        <div className="stat">
+          <div className="stat__label">{r.tax.year.label} collected</div>
+          <div className="stat__value">{money(r.tax.year.collected)}</div>
+        </div>
+      </div>
+      <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+        Charged = tax on bills dated in the period. Collected = tax on bills paid in the period.
+      </p>
 
       <div className="section-title">Revenue by month</div>
       <div className="card">
