@@ -1,9 +1,14 @@
-name: Deploy to GitHub Pages
+name: Deploy stable + beta to GitHub Pages
 
-# Assumes this folder (field-service-app) is the root of its own GitHub repo.
+# One Pages site, two channels rebuilt every run so neither overwrites the other:
+#   /stable/  <- the latest *full* GitHub Release (prereleases excluded)
+#   /beta/    <- main (bleeding edge)
+#   /         <- landing page linking both
 on:
   push:
     branches: [main]
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -18,20 +23,41 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # all branches + tags, so release tags are buildable
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm ci
-      - run: npm run icons
-      # Project pages are served from /<repo>/, so base must match the repo name.
-      - run: npm run build
-        env:
-          VITE_BASE: /${{ github.event.repository.name }}/
+
+      - name: Build both channels
+        run: |
+          set -euo pipefail
+          REPO_NAME="${GITHUB_REPOSITORY##*/}"
+          STABLE_TAG="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq .tag_name)"
+          echo "Stable channel builds from latest release: ${STABLE_TAG}"
+
+          build() { # $1 = git ref, $2 = channel name
+            local ref="$1" channel="$2"
+            git worktree add "../b-${channel}" "${ref}"
+            ( cd "../b-${channel}" \
+              && npm install \
+              && npm run icons \
+              && VITE_BASE="/${REPO_NAME}/${channel}/" npm run build )
+            mkdir -p "site/${channel}"
+            cp -r "../b-${channel}/dist/." "site/${channel}/"
+          }
+
+          build "${STABLE_TAG}" stable
+          build "HEAD"          beta
+          cp landing/index.html site/index.html
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: site
 
   deploy:
     needs: build

@@ -1,7 +1,9 @@
 import Dexie from 'dexie';
 
 // Single local IndexedDB database. Everything lives on the device.
-export const db = new Dexie('field-service');
+// v3 uses its own DB name so it can run side-by-side with v2 on the same github.io origin
+// without v2 and v3 fighting over one database (IndexedDB is scoped per origin, not per path).
+export const db = new Dexie('field-service-v3');
 
 // Primary key first, then indexed fields used for lookups/sorting.
 db.version(1).stores({
@@ -24,12 +26,59 @@ db.version(3).stores({
   workTypes: 'id, name, createdAt',
 });
 
+// v4: deletion tombstones + an `updatedAt` convention on every row, for Google Drive sync
+// (last-writer-wins needs a timestamp on every record, and deletes need to propagate).
+export const SYNCED_TABLES = [
+  'businessProfile',
+  'accounts',
+  'contacts',
+  'workOrders',
+  'photos',
+  'billsOfSale',
+  'catalogItems',
+  'workTypes',
+];
+
+db.version(4)
+  .stores({
+    tombstones: '[table+key], deletedAt',
+  })
+  .upgrade(async (tx) => {
+    // Backfill so every existing row has an updatedAt for merge comparisons.
+    for (const name of SYNCED_TABLES) {
+      await tx
+        .table(name)
+        .toCollection()
+        .modify((row) => {
+          if (row.updatedAt == null) row.updatedAt = row.createdAt || Date.now();
+        });
+    }
+  });
+
 export const uid = () =>
   crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 export const now = () => Date.now();
 
 export const PROFILE_ID = 'profile';
+
+// ---- Sync helpers -----------------------------------------------------------
+const DEVICE_ID_KEY = 'fs-device-id';
+
+// Stable per-device/browser id, used to name this device's sync file and break LWW ties.
+export function getDeviceId() {
+  let id = localStorage.getItem(DEVICE_ID_KEY);
+  if (!id) {
+    id = uid();
+    localStorage.setItem(DEVICE_ID_KEY, id);
+  }
+  return id;
+}
+
+// Record a deletion so it propagates to peers and isn't resurrected by a stale copy.
+export async function recordTombstone(table, key) {
+  await db.tombstones.put({ table, key, deletedAt: now() });
+}
 
 // ---- Business profile -------------------------------------------------------
 export async function getProfile() {
@@ -39,7 +88,7 @@ export async function getProfile() {
 export async function saveProfile(data) {
   // Merge so fields managed elsewhere (e.g. nextBillNumber) aren't wiped.
   const existing = (await db.businessProfile.get(PROFILE_ID)) || {};
-  await db.businessProfile.put({ ...existing, ...data, id: PROFILE_ID });
+  await db.businessProfile.put({ ...existing, ...data, id: PROFILE_ID, updatedAt: now() });
 }
 
 // ---- Accounts ---------------------------------------------------------------
@@ -60,21 +109,26 @@ export async function deleteAccount(id) {
   await Promise.all(orders.map((o) => deleteWorkOrder(o.id)));
   await db.contacts.bulkDelete(contacts.map((c) => c.id));
   await db.accounts.delete(id);
+  await Promise.all([
+    ...contacts.map((c) => recordTombstone('contacts', c.id)),
+    recordTombstone('accounts', id),
+  ]);
 }
 
 // ---- Contacts ---------------------------------------------------------------
 export async function createContact(data) {
   const id = uid();
-  await db.contacts.add({ id, createdAt: now(), ...data });
+  await db.contacts.add({ id, createdAt: now(), updatedAt: now(), ...data });
   return id;
 }
 
 export async function updateContact(id, data) {
-  await db.contacts.update(id, data);
+  await db.contacts.update(id, { ...data, updatedAt: now() });
 }
 
 export async function deleteContact(id) {
   await db.contacts.delete(id);
+  await recordTombstone('contacts', id);
 }
 
 // ---- Work orders ------------------------------------------------------------
@@ -85,6 +139,7 @@ export async function createWorkOrder(data) {
     status: 'open',
     serviceDate: now(),
     createdAt: now(),
+    updatedAt: now(),
     completedAt: null,
     ...data,
   });
@@ -92,7 +147,7 @@ export async function createWorkOrder(data) {
 }
 
 export async function updateWorkOrder(id, data) {
-  await db.workOrders.update(id, data);
+  await db.workOrders.update(id, { ...data, updatedAt: now() });
 }
 
 export async function deleteWorkOrder(id) {
@@ -101,17 +156,23 @@ export async function deleteWorkOrder(id) {
   await db.photos.bulkDelete(photos.map((p) => p.id));
   await db.billsOfSale.bulkDelete(bills.map((b) => b.id));
   await db.workOrders.delete(id);
+  await Promise.all([
+    ...photos.map((p) => recordTombstone('photos', p.id)),
+    ...bills.map((b) => recordTombstone('billsOfSale', b.id)),
+    recordTombstone('workOrders', id),
+  ]);
 }
 
 // ---- Photos -----------------------------------------------------------------
 export async function addPhoto(workOrderId, blob) {
   const id = uid();
-  await db.photos.add({ id, workOrderId, blob, createdAt: now() });
+  await db.photos.add({ id, workOrderId, blob, createdAt: now(), updatedAt: now() });
   return id;
 }
 
 export async function deletePhoto(id) {
   await db.photos.delete(id);
+  await recordTombstone('photos', id);
 }
 
 // ---- Bills of sale ----------------------------------------------------------
@@ -146,7 +207,7 @@ export async function saveBill(workOrderId, data) {
     }
 
     if (existing) {
-      await db.billsOfSale.update(existing.id, { ...data, billNumber });
+      await db.billsOfSale.update(existing.id, { ...data, billNumber, updatedAt: now() });
       return existing.id;
     }
     const id = uid();
@@ -154,6 +215,7 @@ export async function saveBill(workOrderId, data) {
       id,
       workOrderId,
       createdAt: now(),
+      updatedAt: now(),
       paymentStatus: 'unpaid',
       billNumber,
       ...data,
@@ -163,7 +225,7 @@ export async function saveBill(workOrderId, data) {
 }
 
 export async function savePdfToBill(billId, pdfBlob) {
-  await db.billsOfSale.update(billId, { pdfBlob, pdfGeneratedAt: now() });
+  await db.billsOfSale.update(billId, { pdfBlob, pdfGeneratedAt: now(), updatedAt: now() });
 }
 
 export async function markBillPaid(id, method, reference = '') {
@@ -172,11 +234,12 @@ export async function markBillPaid(id, method, reference = '') {
     paymentMethod: method || '',
     paymentReference: reference || '',
     paidAt: now(),
+    updatedAt: now(),
   });
 }
 
 export async function markBillUnpaid(id) {
-  await db.billsOfSale.update(id, { paymentStatus: 'unpaid', paidAt: null });
+  await db.billsOfSale.update(id, { paymentStatus: 'unpaid', paidAt: null, updatedAt: now() });
 }
 
 // ---- Parts & labor catalog --------------------------------------------------
@@ -186,16 +249,17 @@ export async function listCatalog() {
 
 export async function createCatalogItem(data) {
   const id = uid();
-  await db.catalogItems.add({ id, createdAt: now(), ...data });
+  await db.catalogItems.add({ id, createdAt: now(), updatedAt: now(), ...data });
   return id;
 }
 
 export async function updateCatalogItem(id, data) {
-  await db.catalogItems.update(id, data);
+  await db.catalogItems.update(id, { ...data, updatedAt: now() });
 }
 
 export async function deleteCatalogItem(id) {
   await db.catalogItems.delete(id);
+  await recordTombstone('catalogItems', id);
 }
 
 // ---- Work types -------------------------------------------------------------
@@ -218,16 +282,17 @@ export async function listWorkTypes() {
 
 export async function createWorkType(data) {
   const id = uid();
-  await db.workTypes.add({ id, createdAt: now(), icon: 'wrench', items: [], ...data });
+  await db.workTypes.add({ id, createdAt: now(), updatedAt: now(), icon: 'wrench', items: [], ...data });
   return id;
 }
 
 export async function updateWorkType(id, data) {
-  await db.workTypes.update(id, data);
+  await db.workTypes.update(id, { ...data, updatedAt: now() });
 }
 
 export async function deleteWorkType(id) {
   await db.workTypes.delete(id);
+  await recordTombstone('workTypes', id);
 }
 
 // Seed starter work types exactly once. The flag lives on the profile so deleting
@@ -236,11 +301,13 @@ export async function ensureSeedWorkTypes() {
   const profile = await db.businessProfile.get(PROFILE_ID);
   if (profile?.workTypesSeeded) return;
   if ((await db.workTypes.count()) === 0) {
-    await db.workTypes.bulkAdd(DEFAULT_WORK_TYPES.map((w) => ({ id: uid(), createdAt: now(), ...w })));
+    await db.workTypes.bulkAdd(
+      DEFAULT_WORK_TYPES.map((w) => ({ id: uid(), createdAt: now(), updatedAt: now(), ...w }))
+    );
   }
   await saveProfile({ workTypesSeeded: true });
 }
 
 export async function updatePhoto(id, blob) {
-  await db.photos.update(id, { blob, annotatedAt: now() });
+  await db.photos.update(id, { blob, annotatedAt: now(), updatedAt: now() });
 }

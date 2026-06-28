@@ -17,6 +17,7 @@ import { useToast } from '../components/Toast.jsx';
 import CatalogManager from '../components/CatalogManager.jsx';
 import WorkTypeManager from '../components/WorkTypeManager.jsx';
 import ImportExport from '../components/ImportExport.jsx';
+import CloudSync from '../components/CloudSync.jsx';
 import Icon from '../components/Icon.jsx';
 
 const EMPTY = {
@@ -362,6 +363,9 @@ export default function Settings() {
       <div className="section-title">Import &amp; export lists</div>
       <ImportExport />
 
+      <div className="section-title">Cloud sync (Google Drive)</div>
+      <CloudSync />
+
       <div className="section-title">Backup &amp; restore</div>
       <div className="card">
         <p className="muted" style={{ marginTop: 0 }}>
@@ -376,6 +380,10 @@ export default function Settings() {
           <input type="file" accept="application/json,.json" onChange={restore} hidden />
         </label>
       </div>
+
+      <p className="muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 24 }}>
+        Field Service v{__APP_VERSION__}
+      </p>
     </>
   );
 }
