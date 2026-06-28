@@ -105,6 +105,7 @@ export default function BillEditor() {
   const { status: saveStatus, flush: flushSave } = useAutosave(
     autosaveData,
     async (d) => {
+      if (!billHasContent(d.items)) return;
       const { subtotal, taxAmount, ccFeeAmount, total } = computeTotals(
         d.items,
         d.taxRate,
@@ -129,7 +130,7 @@ export default function BillEditor() {
       const saved = await getBillForWorkOrder(id);
       if (saved?.pdfGeneratedAt) setPdfStale(true); // data changed after a PDF existed
     },
-    { enabled: step === 'edit' && billHasContent(items) }
+    { enabled: !!ctx && step === 'edit' }
   );
 
   if (!ctx) return null;
