@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import { money, fmtDate, getPhones, fmtPhone } from './format.js';
+import { compressForPdf } from './image.js';
 
 export function blobToDataURL(blob) {
   return new Promise((resolve, reject) => {
@@ -254,15 +255,24 @@ export async function generateBillPdf({ profile, account, contact, workOrder, bi
     const maxW = right - M;
     for (const pb of photoBlobs) {
       try {
-        const url = await blobToDataURL(pb);
-        const { w, h } = await imageSize(url);
+        const compressed = await compressForPdf(pb);
+        let url, w, h, fmt;
+        if (compressed) {
+          ({ dataUrl: url, w, h } = compressed);
+          fmt = 'JPEG';
+        } else {
+          // Fall back to the original blob if compression failed.
+          url = await blobToDataURL(pb);
+          ({ w, h } = await imageSize(url));
+          fmt = fmtForJsPDF(pb.type);
+        }
         const dispW = Math.min(maxW, 360);
         const dispH = (h / w) * dispW;
         if (y + dispH > PH - M) {
           doc.addPage();
           y = M;
         }
-        doc.addImage(url, fmtForJsPDF(pb.type), M, y, dispW, dispH);
+        doc.addImage(url, fmt, M, y, dispW, dispH);
         y += dispH + 14;
       } catch {
         /* skip bad image */
