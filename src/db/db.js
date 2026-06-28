@@ -166,8 +166,13 @@ export async function savePdfToBill(billId, pdfBlob) {
   await db.billsOfSale.update(billId, { pdfBlob, pdfGeneratedAt: now() });
 }
 
-export async function markBillPaid(id, method) {
-  await db.billsOfSale.update(id, { paymentStatus: 'paid', paymentMethod: method || '', paidAt: now() });
+export async function markBillPaid(id, method, reference = '') {
+  await db.billsOfSale.update(id, {
+    paymentStatus: 'paid',
+    paymentMethod: method || '',
+    paymentReference: reference || '',
+    paidAt: now(),
+  });
 }
 
 export async function markBillUnpaid(id) {
