@@ -5,7 +5,8 @@ import { getPhones } from '../lib/format.js';
 import { useToast } from '../components/Toast.jsx';
 import PhoneListField from '../components/PhoneListField.jsx';
 
-const EMPTY = { name: '', phones: [], email: '', address: '', notes: '' };
+const EMPTY = { name: '', phones: [], email: '', address: '', notes: '', rating: 0, terms: '' };
+const TERMS = ['COD', 'Net-30', 'Prepay', 'Do-not-service'];
 
 // Normalize an entity's phones into the form shape (label defaults to Mobile).
 const toFormPhones = (e) =>
@@ -56,6 +57,31 @@ export default function AccountForm() {
 
       <label>Address</label>
       <textarea value={form.address} onChange={set('address')} />
+
+      <label>Rating</label>
+      <div className="chips">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            type="button"
+            key={n}
+            className={`chip ${form.rating >= n ? 'chip--active' : ''}`}
+            aria-label={`${n} star${n > 1 ? 's' : ''}`}
+            onClick={() => setForm((f) => ({ ...f, rating: f.rating === n ? 0 : n }))}
+          >
+            ★
+          </button>
+        ))}
+      </div>
+
+      <label>Terms</label>
+      <select value={form.terms} onChange={set('terms')}>
+        <option value="">— None —</option>
+        {TERMS.map((t) => (
+          <option key={t} value={t}>
+            {t}
+          </option>
+        ))}
+      </select>
 
       <label>Notes</label>
       <textarea value={form.notes} onChange={set('notes')} />

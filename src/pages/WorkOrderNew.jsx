@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, createAccount, createContact, createWorkOrder, addPhoto, listWorkTypes, getProfile } from '../db/db.js';
 import { toDateInput, fromDateInput } from '../lib/format.js';
+import { accountWarning } from '../lib/unpaid.js';
 import { useAutosave } from '../lib/useAutosave.js';
 import { loadDraft, saveDraft, clearDraft, draftHasContent } from '../lib/draft.js';
 import { useToast } from '../components/Toast.jsx';
@@ -79,6 +80,9 @@ export default function WorkOrderNew() {
 
   const creatingAccount = accountId === '__new__';
   const creatingContact = contactId === '__new__';
+
+  const selectedAccount = (accounts || []).find((a) => a.id === accountId);
+  const warning = selectedAccount ? accountWarning(selectedAccount) : null;
 
   function onPhotos(e) {
     const files = Array.from(e.target.files || []);
@@ -180,6 +184,22 @@ export default function WorkOrderNew() {
           value={newAccountName}
           onChange={(e) => setNewAccountName(e.target.value)}
         />
+      )}
+      {warning && (
+        <div
+          className="card"
+          style={{
+            marginTop: 8,
+            background: 'var(--badge-open-bg)',
+            color: 'var(--badge-open-fg)',
+            display: 'flex',
+            gap: 8,
+            alignItems: 'center',
+          }}
+          role="alert"
+        >
+          <Icon name="alert-triangle" size={16} /> {warning}
+        </div>
       )}
 
       <label>Contact on site</label>

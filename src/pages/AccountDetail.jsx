@@ -1,7 +1,8 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, deleteAccount } from '../db/db.js';
-import { fmtDate, getPhones } from '../lib/format.js';
+import { fmtDate, getPhones, money } from '../lib/format.js';
+import { accountOutstanding } from '../lib/unpaid.js';
 import { useToast } from '../components/Toast.jsx';
 import Icon from '../components/Icon.jsx';
 import PhoneRow from '../components/PhoneRow.jsx';
@@ -17,13 +18,18 @@ export default function AccountDetail() {
     if (!account) return { missing: true };
     const contacts = await db.contacts.where('accountId').equals(id).toArray();
     const orders = await db.workOrders.where('accountId').equals(id).reverse().sortBy('createdAt');
-    return { account, contacts, orders };
+    const orderIds = orders.map((o) => o.id);
+    const bills = orderIds.length
+      ? await db.billsOfSale.where('workOrderId').anyOf(orderIds).toArray()
+      : [];
+    return { account, contacts, orders, bills };
   }, [id]);
 
   if (!data) return null;
   if (data.missing) return <p className="muted">Account not found.</p>;
-  const { account, contacts, orders } = data;
+  const { account, contacts, orders, bills } = data;
   const phones = getPhones(account);
+  const { totalUnpaid, lastPaidDate } = accountOutstanding(bills);
 
   async function onDelete() {
     if (!confirm(`Delete "${account.name}" and all its contacts and work orders?`)) return;
@@ -52,6 +58,34 @@ export default function AccountDetail() {
           <NavigateLink text={account.address} style={{ marginTop: 8 }} />
         )}
         {account.notes && <div className="muted" style={{ marginTop: 6 }}>{account.notes}</div>}
+        {(account.rating || account.terms) && (
+          <div className="row" style={{ marginTop: 8, gap: 8, flexWrap: 'wrap' }}>
+            {account.rating > 0 && (
+              <span title={`Rating: ${account.rating} of 5`} style={{ color: '#f59e0b', letterSpacing: 1 }}>
+                {'★'.repeat(account.rating)}
+                <span className="muted">{'☆'.repeat(5 - account.rating)}</span>
+              </span>
+            )}
+            {account.terms && (
+              <span className={`badge ${account.terms === 'Do-not-service' ? 'badge--unpaid' : ''}`}>
+                {account.terms}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="card" style={{ marginTop: 12 }}>
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <span className="muted">Outstanding</span>
+          <strong style={{ color: totalUnpaid > 0 ? 'var(--badge-open-fg)' : 'inherit' }}>
+            {money(totalUnpaid)}
+          </strong>
+        </div>
+        <div className="row" style={{ justifyContent: 'space-between', marginTop: 6 }}>
+          <span className="muted">Last paid</span>
+          <span>{lastPaidDate ? fmtDate(lastPaidDate) : '—'}</span>
+        </div>
       </div>
 
       <div className="btn-row">
