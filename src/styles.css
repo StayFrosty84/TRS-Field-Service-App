@@ -401,6 +401,36 @@ select:focus {
   font-weight: 700;
 }
 
+/* Collapsible Settings groups */
+.settings-group {
+  border-top: 1px solid var(--border);
+}
+.settings-group > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 16px;
+  padding: 16px 2px;
+}
+.settings-group > summary::-webkit-details-marker {
+  display: none;
+}
+.settings-group > summary::after {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+.settings-group[open] > summary::after {
+  transform: rotate(45deg);
+}
+
 /* Search bar */
 .searchbar {
   position: relative;
