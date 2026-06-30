@@ -1,21 +1,29 @@
-// "Who owes me money": the unpaid bills, biggest first, joined to their account
+// "Who owes me money": the unpaid bills, biggest balance first, joined to their account
 // name and aged in days. Pure so it's unit-testable; the dashboard renders the result.
+// Outstanding is the per-bill *balance* (payments aware), not the gross total — a
+// partially-paid bill contributes only what's still owed.
+import { billBalance, isPaid, lastPaymentDate } from './payments.js';
+
 const DAY = 86400000;
 const billTs = (b) => b.billDate || b.pdfGeneratedAt || b.createdAt || 0;
 
 export function unpaidBills(bills, ordersById = {}, accounts = {}, now = Date.now()) {
   return bills
-    .filter((b) => b.paymentStatus !== 'paid')
+    .filter((b) => !isPaid(b))
     .map((b) => {
       const acctId = ordersById[b.workOrderId]?.accountId;
+      const balance = billBalance(b);
       return {
         workOrderId: b.workOrderId,
         name: accounts[acctId]?.name || 'Unknown',
-        total: b.total || 0,
+        // `total` keeps its key for existing dashboard readers but now carries the
+        // remaining balance; `balance` is the explicit alias.
+        total: balance,
+        balance,
         ageDays: Math.max(0, Math.floor((now - billTs(b)) / DAY)),
       };
     })
-    .sort((a, b) => b.total - a.total);
+    .sort((a, b) => b.balance - a.balance);
 }
 
 // Per-account rollup: total still owed across the account's bills, and when it
@@ -24,11 +32,9 @@ export function accountOutstanding(bills = []) {
   let totalUnpaid = 0;
   let lastPaidDate = null;
   for (const b of bills) {
-    if (b.paymentStatus !== 'paid') {
-      totalUnpaid += b.total || 0;
-    } else if (b.paidAt && (lastPaidDate == null || b.paidAt > lastPaidDate)) {
-      lastPaidDate = b.paidAt;
-    }
+    if (!isPaid(b)) totalUnpaid += billBalance(b);
+    const paidOn = lastPaymentDate(b);
+    if (paidOn != null && (lastPaidDate == null || paidOn > lastPaidDate)) lastPaidDate = paidOn;
   }
   return { totalUnpaid, lastPaidDate };
 }

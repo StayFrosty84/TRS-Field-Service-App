@@ -1,22 +1,71 @@
 import { describe, it, expect } from 'vitest';
-import { paidLine, infoLines } from './pdfText.js';
+import { paymentLines, infoLines } from './pdfText.js';
 
-describe('paidLine', () => {
-  it('returns null when unpaid', () => {
-    expect(paidLine({ paymentStatus: 'unpaid' })).toBeNull();
+const D = new Date(2026, 5, 21).getTime();
+
+describe('paymentLines', () => {
+  it('returns [] when no payments recorded', () => {
+    expect(paymentLines({ total: 100, payments: [] })).toEqual([]);
+    expect(paymentLines({ total: 100, paymentStatus: 'unpaid' })).toEqual([]);
   });
-  it('PAID with method and reference', () => {
-    expect(paidLine({ paymentStatus: 'paid', paymentMethod: 'Check', paymentReference: '1234' }))
-      .toBe('PAID (Check) · Ref: 1234');
+
+  it('omits a blank reference', () => {
+    const lines = paymentLines({
+      total: 100,
+      payments: [{ id: 'p1', amount: 100, method: 'Cash', date: D, reference: '  ' }],
+    });
+    expect(lines[0]).not.toMatch(/Ref:/);
+    expect(lines[0]).toMatch(/Cash/);
   });
-  it('PAID with method only', () => {
-    expect(paidLine({ paymentStatus: 'paid', paymentMethod: 'Cash' })).toBe('PAID (Cash)');
+
+  it('shows a present reference', () => {
+    const lines = paymentLines({
+      total: 100,
+      payments: [{ id: 'p1', amount: 100, method: 'Check', date: D, reference: '1234' }],
+    });
+    expect(lines[0]).toMatch(/Ref: 1234/);
+    expect(lines[0]).toMatch(/Check/);
   });
-  it('PAID with reference only', () => {
-    expect(paidLine({ paymentStatus: 'paid', paymentReference: 'TXN-9' })).toBe('PAID · Ref: TXN-9');
+
+  it('uses a generic label when method is blank', () => {
+    const lines = paymentLines({
+      total: 100,
+      payments: [{ id: 'p1', amount: 100, method: '', date: D, reference: '' }],
+    });
+    expect(lines[0]).toMatch(/\(payment\)/);
   });
-  it('bare PAID', () => {
-    expect(paidLine({ paymentStatus: 'paid' })).toBe('PAID');
+
+  it('lists each payment and trails with PAID IN FULL when balance is cleared', () => {
+    const lines = paymentLines({
+      total: 100,
+      payments: [
+        { id: 'p1', amount: 40, method: 'Cash', date: D, reference: '' },
+        { id: 'p2', amount: 60, method: 'Check', date: D, reference: '99' },
+      ],
+    });
+    expect(lines).toHaveLength(3);
+    expect(lines[2]).toBe('PAID IN FULL');
+  });
+
+  it('trails with Balance due when a balance remains', () => {
+    const lines = paymentLines({
+      total: 100,
+      payments: [{ id: 'p1', amount: 40, method: 'Cash', date: D, reference: '' }],
+    });
+    expect(lines[lines.length - 1]).toMatch(/^Balance due:/);
+  });
+
+  it('synthesizes the line for a legacy paid bill', () => {
+    const lines = paymentLines({
+      total: 50,
+      paymentStatus: 'paid',
+      paymentMethod: 'Card',
+      paymentReference: 'TXN-9',
+      paidAt: D,
+    });
+    expect(lines[0]).toMatch(/Card/);
+    expect(lines[0]).toMatch(/Ref: TXN-9/);
+    expect(lines[lines.length - 1]).toBe('PAID IN FULL');
   });
 });
 

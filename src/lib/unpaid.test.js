@@ -18,7 +18,7 @@ const bills = [
 ];
 
 describe('unpaidBills', () => {
-  it('returns only unpaid bills, biggest first', () => {
+  it('returns only unpaid bills, biggest balance first', () => {
     const rows = unpaidBills(bills, ordersById, accounts, NOW);
     expect(rows.map((r) => r.workOrderId)).toEqual(['wo3', 'wo1']);
   });
@@ -36,5 +36,31 @@ describe('unpaidBills', () => {
       NOW
     );
     expect(rows[0].name).toBe('Unknown');
+  });
+
+  it('shows a partial bill with its remaining balance, not its gross total', () => {
+    const partial = [
+      {
+        id: 'bp',
+        workOrderId: 'wo1',
+        total: 400,
+        payments: [{ id: 'p1', amount: 150, date: NOW - DAY }],
+        billDate: NOW - 3 * DAY,
+      },
+    ];
+    const [row] = unpaidBills(partial, ordersById, accounts, NOW);
+    expect(row).toMatchObject({ workOrderId: 'wo1', total: 250, balance: 250 });
+  });
+
+  it('excludes a bill fully paid via payments[]', () => {
+    const paidViaPayments = [
+      { id: 'bx', workOrderId: 'wo1', total: 200, payments: [{ id: 'p1', amount: 200, date: NOW }] },
+    ];
+    expect(unpaidBills(paidViaPayments, ordersById, accounts, NOW)).toEqual([]);
+  });
+
+  it('still excludes a legacy paymentStatus:"paid" bill (no payments[])', () => {
+    const legacy = [{ id: 'bl', workOrderId: 'wo1', total: 200, paymentStatus: 'paid' }];
+    expect(unpaidBills(legacy, ordersById, accounts, NOW)).toEqual([]);
   });
 });

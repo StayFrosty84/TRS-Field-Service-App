@@ -376,6 +376,10 @@ select:focus {
   background: var(--badge-open-bg);
   color: var(--badge-open-fg);
 }
+.badge--partial {
+  background: #fef9c3;
+  color: #854d0e;
+}
 .row {
   display: flex;
   gap: 10px;

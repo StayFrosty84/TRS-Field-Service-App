@@ -7,17 +7,17 @@ beforeEach(async () => {
 });
 
 describe('markBillPaid', () => {
-  it('stores method and reference', async () => {
+  it('records a full-balance payment with its method and reference', async () => {
     await markBillPaid('b1', 'Check', '5567');
     const b = await db.billsOfSale.get('b1');
-    expect(b.paymentStatus).toBe('paid');
-    expect(b.paymentMethod).toBe('Check');
-    expect(b.paymentReference).toBe('5567');
+    expect(b.paymentStatus).toBe('paid'); // mirrored for the v2 index
+    expect(b.payments).toHaveLength(1);
+    expect(b.payments[0]).toMatchObject({ amount: 100, method: 'Check', reference: '5567' });
   });
 
   it('defaults reference to empty string', async () => {
     await markBillPaid('b1', 'Cash');
     const b = await db.billsOfSale.get('b1');
-    expect(b.paymentReference).toBe('');
+    expect(b.payments[0].reference).toBe('');
   });
 });

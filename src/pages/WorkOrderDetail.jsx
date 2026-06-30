@@ -10,12 +10,14 @@ import {
   addPhoto,
   deletePhoto,
   getBillForWorkOrder,
-  markBillPaid,
+  addBillPayment,
+  removeBillPayment,
   markBillUnpaid,
   listWorkTypes,
   updatePhoto,
 } from '../db/db.js';
-import { toDateInput, fromDateInput, money, getPhones, telHref, fmtPhone } from '../lib/format.js';
+import { toDateInput, fromDateInput, money, fmtDate, getPhones, telHref, fmtPhone } from '../lib/format.js';
+import { normalizePayments, amountPaid, billBalance, paymentState } from '../lib/payments.js';
 import { shareFile, openBlob } from '../lib/share.js';
 import { useToast } from '../components/Toast.jsx';
 import { useFeatures } from '../lib/useFeatures.js';
@@ -41,6 +43,7 @@ export default function WorkOrderDetail() {
   const [loaded, setLoaded] = useState(false);
   const [payMethod, setPayMethod] = useState('Cash');
   const [payReference, setPayReference] = useState('');
+  const [payAmount, setPayAmount] = useState('');
   const [markupPhoto, setMarkupPhoto] = useState(null); // { id, blob }
 
   const data = useLiveQuery(async () => {
@@ -255,43 +258,101 @@ export default function WorkOrderDetail() {
       <div className="section-title">Bill of Sale</div>
       {bill ? (
         <div className="card">
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <strong>{money(bill.total || 0)}</strong>
-            {features.billing && (
-              <span className={`badge badge--${bill.paymentStatus === 'paid' ? 'paid' : 'unpaid'}`}>
-                {bill.paymentStatus === 'paid'
-                  ? `paid${bill.paymentMethod ? ` · ${bill.paymentMethod}` : ''}`
-                  : 'unpaid'}
-              </span>
-            )}
-          </div>
-          {features.billing &&
-            (bill.paymentStatus === 'paid' ? (
-              <button className="btn btn--ghost btn--sm" style={{ marginTop: 10 }} onClick={() => markBillUnpaid(bill.id)}>
-                <Icon name="rotate-ccw" /> Mark unpaid
-              </button>
-            ) : (
-              <div style={{ marginTop: 10 }}>
-                <div className="row" style={{ gap: 8, alignItems: 'center' }}>
-                  <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} style={{ flex: 1 }}>
-                    <option>Cash</option>
-                    <option>Check</option>
-                    <option>Card</option>
-                    <option>Zelle</option>
-                    <option>Other</option>
-                  </select>
-                  <button className="btn btn--sm" onClick={() => markBillPaid(bill.id, payMethod, payReference.trim())}>
-                    <Icon name="check" /> Mark paid
-                  </button>
+          {(() => {
+            const payments = normalizePayments(bill);
+            const paid = amountPaid(bill);
+            const balance = billBalance(bill);
+            const state = paymentState(bill);
+            const addPayment = async () => {
+              const amt = Number(payAmount);
+              if (!Number.isFinite(amt) || amt <= 0) {
+                toast('Enter a payment amount');
+                return;
+              }
+              await addBillPayment(bill.id, { amount: amt, method: payMethod, reference: payReference.trim() });
+              setPayReference('');
+              setPayAmount('');
+              toast('Payment added');
+            };
+            return (
+              <>
+                <div className="row" style={{ justifyContent: 'space-between' }}>
+                  <strong>{money(bill.total || 0)}</strong>
+                  {features.billing && <span className={`badge badge--${state}`}>{state}</span>}
                 </div>
-                <input
-                  value={payReference}
-                  onChange={(e) => setPayReference(e.target.value)}
-                  placeholder="Reference # (optional)"
-                  style={{ marginTop: 8 }}
-                />
-              </div>
-            ))}
+                {features.billing && (
+                  <p className="muted" style={{ fontSize: 13, margin: '6px 0 0' }}>
+                    Paid {money(paid)} · Balance {money(Math.max(0, balance))}
+                  </p>
+                )}
+                {features.billing && payments.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    {payments.map((p) => (
+                      <div
+                        key={p.id}
+                        className="row"
+                        style={{ justifyContent: 'space-between', alignItems: 'center', fontSize: 14, padding: '4px 0' }}
+                      >
+                        <span>
+                          {money(p.amount)} · {p.method || 'payment'} · {fmtDate(p.date)}
+                          {(p.reference || '').trim() ? ` · Ref: ${p.reference.trim()}` : ''}
+                        </span>
+                        <button
+                          className="btn btn--ghost btn--sm"
+                          aria-label="Remove payment"
+                          onClick={() => confirm('Remove this payment?') && removeBillPayment(bill.id, p.id)}
+                        >
+                          <Icon name="trash-2" size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {features.billing && (
+                  <div style={{ marginTop: 10 }}>
+                    <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        value={payAmount}
+                        onChange={(e) => setPayAmount(e.target.value)}
+                        onFocus={() => {
+                          if (payAmount === '' && balance > 0) setPayAmount(String(balance));
+                        }}
+                        placeholder={balance > 0 ? String(balance) : 'Amount'}
+                        style={{ flex: '0 0 110px' }}
+                      />
+                      <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} style={{ flex: 1 }}>
+                        <option>Cash</option>
+                        <option>Check</option>
+                        <option>Card</option>
+                        <option>Zelle</option>
+                        <option>Other</option>
+                      </select>
+                      <button className="btn btn--sm" onClick={addPayment}>
+                        <Icon name="check" /> Add payment
+                      </button>
+                    </div>
+                    <input
+                      value={payReference}
+                      onChange={(e) => setPayReference(e.target.value)}
+                      placeholder="Reference # (optional)"
+                      style={{ marginTop: 8 }}
+                    />
+                    {payments.length > 0 && (
+                      <button
+                        className="btn btn--ghost btn--sm"
+                        style={{ marginTop: 8 }}
+                        onClick={() => confirm('Clear all payments on this bill?') && markBillUnpaid(bill.id)}
+                      >
+                        <Icon name="rotate-ccw" /> Clear payments
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
+            );
+          })()}
           {bill.pdfBlob && (
             <div className="btn-row">
               <button className="btn btn--ghost" onClick={() => openBlob(bill.pdfBlob, 'bill-of-sale.pdf')}>

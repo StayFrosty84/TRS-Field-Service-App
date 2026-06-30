@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { money, fmtDate, getPhones, fmtPhone } from './format.js';
 import { compressForPdf } from './image.js';
-import { paidLine, infoLines } from './pdfText.js';
+import { paymentLines, infoLines } from './pdfText.js';
 
 export function blobToDataURL(blob) {
   return new Promise((resolve, reject) => {
@@ -111,12 +111,22 @@ export async function generateBillPdf({ profile, account, contact, workOrder, bi
   });
   doc.setTextColor(0);
 
-  // PAID marker, below the dates so it never collides with the meta lines or "Bill To".
-  const paid = paidLine(bill);
-  if (paid) {
-    doc.setFont('helvetica', 'bold').setFontSize(12).setTextColor(21, 128, 61);
-    doc.text(paid, right, metaY + 2, { align: 'right' });
-    metaY += 18;
+  // Payments summary, below the dates so it never collides with the meta lines or "Bill To".
+  // Each recorded payment on its own line; the trailing PAID IN FULL / Balance due line is
+  // emphasized — bold green when paid in full, neutral gray when a balance remains.
+  const payLines = paymentLines(bill);
+  if (payLines.length) {
+    metaY += 4;
+    payLines.forEach((t, i) => {
+      const isTrailer = i === payLines.length - 1;
+      const paidInFull = isTrailer && t === 'PAID IN FULL';
+      doc.setFont('helvetica', isTrailer ? 'bold' : 'normal').setFontSize(isTrailer ? 12 : 9);
+      if (paidInFull) doc.setTextColor(21, 128, 61);
+      else if (isTrailer) doc.setTextColor(90);
+      else doc.setTextColor(110);
+      doc.text(t, right, metaY, { align: 'right' });
+      metaY += isTrailer ? 16 : 12;
+    });
     doc.setTextColor(0);
   }
 

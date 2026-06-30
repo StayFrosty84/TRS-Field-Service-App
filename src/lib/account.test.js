@@ -5,7 +5,7 @@ const DAY = 86400000;
 const NOW = new Date(2026, 5, 21, 10).getTime();
 
 describe('accountOutstanding', () => {
-  it('sums the total of unpaid bills only', () => {
+  it('sums the balance of unpaid bills only', () => {
     const bills = [
       { id: 'b1', total: 300, paymentStatus: 'unpaid' },
       { id: 'b2', total: 999, paymentStatus: 'paid', paidAt: NOW },
@@ -14,12 +14,36 @@ describe('accountOutstanding', () => {
     expect(accountOutstanding(bills).totalUnpaid).toBe(800);
   });
 
-  it('returns the most recent paidAt as lastPaidDate', () => {
+  it('counts only the remaining balance on a partially-paid bill', () => {
+    const bills = [
+      { id: 'b1', total: 400, payments: [{ id: 'p1', amount: 150, date: NOW - DAY }] },
+      { id: 'b2', total: 100, paymentStatus: 'unpaid' },
+    ];
+    expect(accountOutstanding(bills).totalUnpaid).toBe(350);
+  });
+
+  it('excludes a bill fully paid via payments[]', () => {
+    const bills = [
+      { id: 'b1', total: 200, payments: [{ id: 'p1', amount: 200, date: NOW }] },
+      { id: 'b2', total: 100, paymentStatus: 'unpaid' },
+    ];
+    expect(accountOutstanding(bills).totalUnpaid).toBe(100);
+  });
+
+  it('returns the most recent paidAt as lastPaidDate (legacy bills)', () => {
     const bills = [
       { id: 'b1', total: 100, paymentStatus: 'paid', paidAt: NOW - 5 * DAY },
       { id: 'b2', total: 100, paymentStatus: 'paid', paidAt: NOW - 1 * DAY },
     ];
     expect(accountOutstanding(bills).lastPaidDate).toBe(NOW - 1 * DAY);
+  });
+
+  it('uses the latest payments[] date for lastPaidDate, including partials', () => {
+    const bills = [
+      { id: 'b1', total: 400, payments: [{ id: 'p1', amount: 100, date: NOW - 2 * DAY }] },
+      { id: 'b2', total: 100, paymentStatus: 'paid', paidAt: NOW - 5 * DAY },
+    ];
+    expect(accountOutstanding(bills).lastPaidDate).toBe(NOW - 2 * DAY);
   });
 
   it('treats missing total as 0', () => {
@@ -32,7 +56,7 @@ describe('accountOutstanding', () => {
     expect(accountOutstanding(bills).lastPaidDate).toBeNull();
   });
 
-  it('ignores paid bills with no paidAt timestamp when picking lastPaidDate', () => {
+  it('ignores paid bills with no payment date when picking lastPaidDate', () => {
     const bills = [
       { id: 'b1', total: 100, paymentStatus: 'paid' },
       { id: 'b2', total: 100, paymentStatus: 'paid', paidAt: NOW - 3 * DAY },

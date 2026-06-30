@@ -1,4 +1,5 @@
 import Dexie from 'dexie';
+import { normalizePayments } from '../lib/payments.js';
 
 // Single local IndexedDB database. Everything lives on the device.
 // v3 uses its own DB name so it can run side-by-side with v2 on the same github.io origin
@@ -228,18 +229,78 @@ export async function savePdfToBill(billId, pdfBlob) {
   await db.billsOfSale.update(billId, { pdfBlob, pdfGeneratedAt: now(), updatedAt: now() });
 }
 
-export async function markBillPaid(id, method, reference = '') {
+// ---- Payments (list) --------------------------------------------------------
+// A bill carries `payments: Payment[]`; paid/balance derive from it (see lib/payments.js).
+// Each write mirrors the derived status into the legacy `paymentStatus` field so the
+// v2 paymentStatus index and any not-yet-migrated reader stay correct (no db.version bump).
+
+// Paid status derived from an EXPLICIT payments list — never from the legacy
+// paymentStatus. (normalizePayments falls back to paymentStatus when the list is
+// empty, which would make clearing a legacy paid bill re-mark it paid.)
+function paidFromList(total, payments) {
+  const paid = payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  return (total || 0) > 0 && (total || 0) - paid <= 0;
+}
+
+// Persist an explicit payment list and mirror the derived paid/unpaid status +
+// paidAt. Caller must run this inside a billsOfSale rw transaction.
+async function persistPayments(id, total, payments) {
+  const derivedPaid = paidFromList(total, payments);
   await db.billsOfSale.update(id, {
-    paymentStatus: 'paid',
-    paymentMethod: method || '',
-    paymentReference: reference || '',
-    paidAt: now(),
+    payments,
+    paymentStatus: derivedPaid ? 'paid' : 'unpaid',
+    paidAt: derivedPaid ? now() : null,
     updatedAt: now(),
   });
 }
 
-export async function markBillUnpaid(id) {
-  await db.billsOfSale.update(id, { paymentStatus: 'unpaid', paidAt: null, updatedAt: now() });
+// Each mutator does its read-modify-write inside one rw transaction so concurrent
+// calls (e.g. clear then add) can't interleave and lose or resurrect payments.
+export function addBillPayment(id, payment) {
+  return db.transaction('rw', db.billsOfSale, async () => {
+    const bill = await db.billsOfSale.get(id);
+    const payments = [
+      ...normalizePayments(bill),
+      {
+        id: uid(),
+        amount: Number(payment.amount) || 0,
+        method: payment.method || '',
+        date: payment.date || now(),
+        reference: (payment.reference || '').trim(),
+      },
+    ];
+    await persistPayments(id, bill?.total, payments);
+  });
+}
+
+export function removeBillPayment(id, paymentId) {
+  return db.transaction('rw', db.billsOfSale, async () => {
+    const bill = await db.billsOfSale.get(id);
+    const payments = normalizePayments(bill).filter((p) => p.id !== paymentId);
+    await persistPayments(id, bill?.total, payments);
+  });
+}
+
+// One-tap "paid in full": adds a payment for the current outstanding balance.
+// Preserves the quick-pay UX. No-op when already fully paid.
+export function markBillPaid(id, method, reference = '') {
+  return db.transaction('rw', db.billsOfSale, async () => {
+    const bill = await db.billsOfSale.get(id);
+    const payments = normalizePayments(bill);
+    const balance = (bill?.total || 0) - payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+    if (balance <= 0) return;
+    await persistPayments(id, bill?.total, [
+      ...payments,
+      { id: uid(), amount: balance, method: method || '', date: now(), reference: (reference || '').trim() },
+    ]);
+  });
+}
+
+// Clear all payments (correct-a-mistake) and mirror status back to unpaid.
+export function markBillUnpaid(id) {
+  return db.transaction('rw', db.billsOfSale, async () => {
+    await db.billsOfSale.update(id, { payments: [], paymentStatus: 'unpaid', paidAt: null, updatedAt: now() });
+  });
 }
 
 // ---- Parts & labor catalog --------------------------------------------------
