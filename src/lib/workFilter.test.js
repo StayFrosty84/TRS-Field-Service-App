@@ -87,3 +87,41 @@ describe('filterWorkOrders', () => {
     expect(ids(filterWorkOrders(orders, { ...base, dateKey: 'today' }))).toEqual(['o1']);
   });
 });
+
+describe('filterWorkOrders — stage pipeline', () => {
+  const DAY = 86400000;
+  const stages = [
+    { id: 's0', name: 'Open', order: 0, color: 'open', isTerminal: false },
+    { id: 's2', name: 'In progress', order: 2, color: 'progress', isTerminal: false },
+    { id: 's3', name: 'Completed', order: 3, color: 'done', isTerminal: true },
+  ];
+  const orders = [
+    // On the new model, in In progress, stuck (entered 20 days ago).
+    { id: 'p1', accountId: 'a1', stageId: 's2', stageHistory: [{ stageId: 's2', at: NOW - 20 * DAY }] },
+    // On the new model, in In progress, fresh.
+    { id: 'p2', accountId: 'a1', stageId: 's2', stageHistory: [{ stageId: 's2', at: NOW - 1 * DAY }] },
+    // Terminal stage — never stuck.
+    { id: 'p3', accountId: 'a1', stageId: 's3', stageHistory: [{ stageId: 's3', at: NOW - 99 * DAY }] },
+    // Legacy open record (no stageId) — resolves to first non-terminal, old → stuck.
+    { id: 'p4', accountId: 'a1', status: 'open', createdAt: NOW - 30 * DAY },
+  ];
+  const base = { query: '', status: 'all', dateKey: 'any', stages, stuckDays: 7, now: NOW };
+  const ids = (rows) => rows.map((o) => o.id);
+
+  it('filters by a stage id (new-model records)', () => {
+    expect(ids(filterWorkOrders(orders, { ...base, status: 's2' }))).toEqual(['p1', 'p2']);
+  });
+
+  it('filters a legacy record by stage id via resolveStage', () => {
+    // p4 (legacy open) resolves to s0, the first non-terminal stage.
+    expect(ids(filterWorkOrders(orders, { ...base, status: 's0' }))).toEqual(['p4']);
+  });
+
+  it('"all" returns everything regardless of stage', () => {
+    expect(ids(filterWorkOrders(orders, { ...base, status: 'all' }))).toEqual(['p1', 'p2', 'p3', 'p4']);
+  });
+
+  it('"stuck" returns only non-terminal orders past the threshold', () => {
+    expect(ids(filterWorkOrders(orders, { ...base, status: 'stuck' }))).toEqual(['p1', 'p4']);
+  });
+});

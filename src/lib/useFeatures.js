@@ -9,6 +9,7 @@ export function useFeatures() {
     dashboard: p?.featDashboard !== false,
     billing: p?.featBilling !== false,
     cardFee: p?.featCardFee !== false,
+    stages: p?.featStages !== false,
     ready: p !== undefined, // useLiveQuery returns undefined while loading
   };
 }

@@ -1,6 +1,8 @@
 // Pure work-order list filtering: a date-range preset + a text query (which also
-// matches the bill number) + the existing status chip. Kept out of the component so
+// matches the bill number) + the status/stage chip. Kept out of the component so
 // it's unit-testable.
+
+import { resolveStage, isStuck } from './stages.js';
 
 const DAY = 86400000;
 const startOfDay = (ts) => {
@@ -33,17 +35,27 @@ export function dateRangeBounds(key, now = Date.now()) {
   }
 }
 
-export function filterWorkOrders(orders, { query, status, dateKey, billByWo, accounts, now } = {}) {
+export function filterWorkOrders(
+  orders,
+  { query, status, dateKey, billByWo, accounts, stages, stuckDays = 7, now } = {}
+) {
   const q = (query || '').trim().toLowerCase();
   const { from, to } = dateRangeBounds(dateKey || 'any', now);
 
   return orders.filter((o) => {
     const bill = billByWo?.[o.id];
 
+    // Status/stage chip. Reserved keys: all | unpaid | stuck | open | completed
+    // (open/completed kept for legacy callers); any other value is a stage id.
     if (status === 'open' || status === 'completed') {
       if (o.status !== status) return false;
     } else if (status === 'unpaid') {
       if (!bill || bill.paymentStatus === 'paid') return false;
+    } else if (status === 'stuck') {
+      if (!isStuck(o, stages || [], stuckDays, now)) return false;
+    } else if (status && status !== 'all') {
+      // A specific stage id — resolve the WO's stage (lazily for legacy records).
+      if (resolveStage(o, stages || [])?.id !== status) return false;
     }
 
     if (from !== -Infinity || to !== Infinity) {

@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, markBillPaid } from '../db/db.js';
+import { db, markBillPaid, listStages, PROFILE_ID } from '../db/db.js';
 import { fmtDate, money } from '../lib/format.js';
 import { useFeatures } from '../lib/useFeatures.js';
 import { filterWorkOrders } from '../lib/workFilter.js';
+import { resolveStage, stageColorClass } from '../lib/stages.js';
 import SearchBar from '../components/SearchBar.jsx';
 import Icon from '../components/Icon.jsx';
 
@@ -30,7 +31,9 @@ export default function Work() {
     const accounts = Object.fromEntries((await db.accounts.toArray()).map((a) => [a.id, a]));
     const bills = await db.billsOfSale.toArray();
     const billByWo = Object.fromEntries(bills.map((b) => [b.workOrderId, b]));
-    return { orders, accounts, billByWo };
+    const stages = await listStages();
+    const profile = await db.businessProfile.get(PROFILE_ID);
+    return { orders, accounts, billByWo, stages, stuckDays: profile?.stuckDays ?? 7 };
   });
 
   const filtered = useMemo(() => {
@@ -41,13 +44,18 @@ export default function Work() {
       dateKey,
       billByWo: data.billByWo,
       accounts: data.accounts,
+      stages: data.stages,
+      stuckDays: data.stuckDays,
     });
   }, [data, query, filter, dateKey]);
 
   if (!data) return null;
-  const { orders, accounts, billByWo } = data;
+  const { orders, accounts, billByWo, stages } = data;
   const showPay = features.billing;
-  const chips = [['all', 'All'], ['open', 'Open'], ['completed', 'Completed']];
+  const useStages = features.stages && stages.length > 0;
+  const chips = useStages
+    ? [['all', 'All'], ...stages.map((s) => [s.id, s.name]), ['stuck', 'Stuck']]
+    : [['all', 'All'], ['open', 'Open'], ['completed', 'Completed']];
   if (showPay) chips.push(['unpaid', 'Unpaid']);
 
   return (
@@ -89,7 +97,14 @@ export default function Work() {
 
       <div className="list">
         {filtered.map((o) => (
-          <OrderRow key={o.id} order={o} account={accounts[o.accountId]} bill={billByWo[o.id]} showPay={showPay} />
+          <OrderRow
+            key={o.id}
+            order={o}
+            account={accounts[o.accountId]}
+            bill={billByWo[o.id]}
+            showPay={showPay}
+            stages={useStages ? stages : null}
+          />
         ))}
       </div>
 
@@ -100,8 +115,9 @@ export default function Work() {
   );
 }
 
-function OrderRow({ order, account, bill, showPay }) {
+function OrderRow({ order, account, bill, showPay, stages }) {
   const paid = bill?.paymentStatus === 'paid';
+  const stage = stages ? resolveStage(order, stages) : null;
   async function quickPay(e) {
     e.preventDefault();
     e.stopPropagation();
@@ -111,7 +127,11 @@ function OrderRow({ order, account, bill, showPay }) {
     <Link className="list-item" to={`/work-orders/${order.id}`}>
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <p className="list-item__title">{account?.name || 'Unknown account'}</p>
-        <span className={`badge badge--${order.status}`}>{order.status}</span>
+        {stage ? (
+          <span className={`badge badge--${stageColorClass(stage)}`}>{stage.name}</span>
+        ) : (
+          <span className={`badge badge--${order.status}`}>{order.status}</span>
+        )}
       </div>
       <p className="list-item__sub">
         {order.issue ? order.issue.slice(0, 80) : 'No issue noted'} · {fmtDate(order.serviceDate)}

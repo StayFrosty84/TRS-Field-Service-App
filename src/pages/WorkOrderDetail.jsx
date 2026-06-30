@@ -14,8 +14,11 @@ import {
   removeBillPayment,
   markBillUnpaid,
   listWorkTypes,
+  listStages,
+  setWorkOrderStage,
   updatePhoto,
 } from '../db/db.js';
+import { resolveStage, stageColorClass, daysInCurrentStage } from '../lib/stages.js';
 import { toDateInput, fromDateInput, money, fmtDate, getPhones, telHref, fmtPhone } from '../lib/format.js';
 import { normalizePayments, amountPaid, billBalance, paymentState } from '../lib/payments.js';
 import { shareFile, openBlob } from '../lib/share.js';
@@ -57,6 +60,7 @@ export default function WorkOrderDetail() {
   }, [id]);
 
   const workTypes = useLiveQuery(listWorkTypes) || [];
+  const stages = useLiveQuery(listStages) || [];
 
   useEffect(() => {
     if (data?.order && !loaded) {
@@ -148,7 +152,14 @@ export default function WorkOrderDetail() {
     <>
       <div className="row" style={{ justifyContent: 'space-between', marginTop: 4 }}>
         <h1 style={{ margin: 0 }}>Work Order</h1>
-        <span className={`badge badge--${order.status}`}>{order.status}</span>
+        {(() => {
+          const stage = features.stages ? resolveStage(order, stages) : null;
+          return stage ? (
+            <span className={`badge badge--${stageColorClass(stage)}`}>{stage.name}</span>
+          ) : (
+            <span className={`badge badge--${order.status}`}>{order.status}</span>
+          );
+        })()}
       </div>
 
       <div className="card" style={{ marginTop: 12 }}>
@@ -380,14 +391,45 @@ export default function WorkOrderDetail() {
         </button>
       )}
 
+      {features.stages && stages.length > 0 ? (
+        <>
+          <label>Stage</label>
+          <div className="chips" style={{ flexWrap: 'wrap' }}>
+            {stages.map((s) => {
+              const current = resolveStage(order, stages)?.id === s.id;
+              return (
+                <button
+                  type="button"
+                  key={s.id}
+                  className={`chip ${current ? 'chip--active' : ''}`}
+                  onClick={async () => {
+                    if (current) return;
+                    await setWorkOrderStage(id, s);
+                    toast(`Moved to ${s.name}`);
+                  }}
+                >
+                  {s.name}
+                </button>
+              );
+            })}
+          </div>
+          <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+            In {resolveStage(order, stages)?.name || 'this stage'} for {daysInCurrentStage(order, stages)} day(s).
+          </p>
+        </>
+      ) : (
+        <div className="btn-row">
+          <button className="btn btn--ghost" onClick={toggleComplete}>
+            {order.status === 'open' ? (
+              <><Icon name="check" /> Mark completed</>
+            ) : (
+              <><Icon name="rotate-ccw" /> Reopen</>
+            )}
+          </button>
+        </div>
+      )}
+
       <div className="btn-row">
-        <button className="btn btn--ghost" onClick={toggleComplete}>
-          {order.status === 'open' ? (
-            <><Icon name="check" /> Mark completed</>
-          ) : (
-            <><Icon name="rotate-ccw" /> Reopen</>
-          )}
-        </button>
         <button className="btn btn--ghost" onClick={duplicate}>
           <Icon name="copy" /> Duplicate
         </button>

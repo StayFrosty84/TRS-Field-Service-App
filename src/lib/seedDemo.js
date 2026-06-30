@@ -7,8 +7,10 @@ import {
   createWorkOrder,
   saveBill,
   markBillPaid,
+  listStages,
 } from '../db/db.js';
 import { computeTotals } from './format.js';
+import { resolveStage } from './stages.js';
 
 // Sample accounts with two contacts each.
 const ACCOUNTS = [
@@ -86,6 +88,11 @@ export async function ensureSeedDemoData() {
     return;
   }
 
+  // Demo jobs are all completed → place them in the terminal Completed stage so
+  // the pipeline reflects them honestly (resolveStage maps a legacy 'completed').
+  const stages = await listStages();
+  const completedStage = resolveStage({ status: 'completed' }, stages);
+
   let i = 0; // global job counter to spread dates across ~10 weeks
   for (const acct of ACCOUNTS) {
     const accountId = await createAccount({
@@ -111,6 +118,9 @@ export async function ensureSeedDemoData() {
         createdAt: ts,
         status: 'completed',
         completedAt: ts,
+        ...(completedStage
+          ? { stageId: completedStage.id, stageHistory: [{ stageId: completedStage.id, at: ts }] }
+          : {}),
       });
       const { subtotal, taxAmount, ccFeeAmount, total } = computeTotals(job.items, TAX_RATE, 0, false);
       const billId = await saveBill(woId, {

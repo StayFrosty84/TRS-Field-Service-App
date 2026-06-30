@@ -9,6 +9,7 @@ const TABLES = [
   'billsOfSale',
   'catalogItems',
   'workTypes',
+  'stages',
 ];
 const SCHEMA_VERSION = 3;
 const LAST_BACKUP_KEY = 'fs-last-backup';

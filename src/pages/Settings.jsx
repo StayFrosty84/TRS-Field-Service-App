@@ -16,6 +16,7 @@ import {
 import { useToast } from '../components/Toast.jsx';
 import CatalogManager from '../components/CatalogManager.jsx';
 import WorkTypeManager from '../components/WorkTypeManager.jsx';
+import StageManager from '../components/StageManager.jsx';
 import ImportExport from '../components/ImportExport.jsx';
 import CloudSync from '../components/CloudSync.jsx';
 import Icon from '../components/Icon.jsx';
@@ -41,6 +42,7 @@ export default function Settings() {
   const [scale, setScaleState] = useState(getScale());
   const [googleOn, setGoogleOnState] = useState(getGoogleEnabled());
   const [googleKey, setGoogleKeyState] = useState(getGoogleKey());
+  const [stuckDays, setStuckDaysState] = useState('7');
   const features = useFeatures();
 
   function chooseTheme(t) {
@@ -72,6 +74,12 @@ export default function Settings() {
     await saveProfile({ [key]: value });
   }
 
+  function changeStuckDays(v) {
+    setStuckDaysState(v);
+    const n = Number(v);
+    if (Number.isFinite(n) && n > 0) saveProfile({ stuckDays: Math.floor(n) });
+  }
+
   useEffect(() => {
     getProfile().then((p) => {
       if (p) {
@@ -85,6 +93,7 @@ export default function Settings() {
           taxRate: p.taxRate != null ? String(p.taxRate) : '',
           billTerms: p.billTerms || '',
         });
+        if (p.stuckDays != null) setStuckDaysState(String(p.stuckDays));
         if (p.logoBlob) {
           setLogoBlob(p.logoBlob);
           setLogoUrl(URL.createObjectURL(p.logoBlob));
@@ -264,6 +273,12 @@ export default function Settings() {
             checked={features.cardFee}
             onChange={(v) => toggleFeature('featCardFee', v)}
           />
+          <ToggleRow
+            label="Work-order stages"
+            hint="Use a configurable stage pipeline (Open → Scheduled → … → Paid) instead of a simple open/completed toggle."
+            checked={features.stages}
+            onChange={(v) => toggleFeature('featStages', v)}
+          />
         </div>
       </details>
 
@@ -350,6 +365,31 @@ export default function Settings() {
         “Preview sample” opens an example Bill of Sale PDF using your current profile above,
         so you can check how it looks (including the credit card fee).
       </p>
+
+      {features.stages && (
+        <>
+          <div className="section-title">Work-order stages</div>
+          <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+            The pipeline a job moves through. Drag to reorder; “finished” stages count as done.
+          </p>
+          <StageManager />
+          <div className="card" style={{ marginTop: 10 }}>
+            <label>Flag jobs stuck more than (days)</label>
+            <input
+              type="number"
+              inputMode="numeric"
+              min="1"
+              step="1"
+              value={stuckDays}
+              onChange={(e) => changeStuckDays(e.target.value)}
+              style={{ maxWidth: 120 }}
+            />
+            <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+              The Dashboard flags any job sitting in a non-finished stage longer than this.
+            </p>
+          </div>
+        </>
+      )}
 
       <div className="section-title">Work types</div>
       <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>

@@ -1,5 +1,6 @@
 import Dexie from 'dexie';
 import { normalizePayments } from '../lib/payments.js';
+import { DEFAULT_STAGES, seedStageHistory } from '../lib/stages.js';
 
 // Single local IndexedDB database. Everything lives on the device.
 // v3 uses its own DB name so it can run side-by-side with v2 on the same github.io origin
@@ -38,6 +39,7 @@ export const SYNCED_TABLES = [
   'billsOfSale',
   'catalogItems',
   'workTypes',
+  'stages',
 ];
 
 db.version(4)
@@ -46,7 +48,9 @@ db.version(4)
   })
   .upgrade(async (tx) => {
     // Backfill so every existing row has an updatedAt for merge comparisons.
-    for (const name of SYNCED_TABLES) {
+    // Explicit list of tables that existed at v4 — NOT SYNCED_TABLES, which may
+    // gain tables (e.g. `stages` in v5) that don't exist yet during this upgrade.
+    for (const name of ['businessProfile', 'accounts', 'contacts', 'workOrders', 'photos', 'billsOfSale', 'catalogItems', 'workTypes']) {
       await tx
         .table(name)
         .toCollection()
@@ -55,6 +59,13 @@ db.version(4)
         });
     }
   });
+
+// v5: configurable work-order stage pipeline (admin-defined stages table).
+// Work orders gain `stageId` + `stageHistory` schemalessly (no index, no migration);
+// legacy open/completed records map onto the pipeline lazily via resolveStage.
+db.version(5).stores({
+  stages: 'id, order, createdAt',
+});
 
 export const uid = () =>
   crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -135,6 +146,10 @@ export async function deleteContact(id) {
 // ---- Work orders ------------------------------------------------------------
 export async function createWorkOrder(data) {
   const id = uid();
+  // Start in the first pipeline stage (by order) and seed one history entry, so
+  // "days in stage" / "stuck" work from creation. Keeps the legacy status shadow.
+  const first = (await listStages())[0] || null;
+  const ts = data?.createdAt ?? now();
   await db.workOrders.add({
     id,
     status: 'open',
@@ -142,6 +157,7 @@ export async function createWorkOrder(data) {
     createdAt: now(),
     updatedAt: now(),
     completedAt: null,
+    ...(first ? { stageId: first.id, stageHistory: [{ stageId: first.id, at: ts }] } : {}),
     ...data,
   });
   return id;
@@ -371,4 +387,76 @@ export async function ensureSeedWorkTypes() {
 
 export async function updatePhoto(id, blob) {
   await db.photos.update(id, { blob, annotatedAt: now(), updatedAt: now() });
+}
+
+// ---- Work-order stages (pipeline) -------------------------------------------
+export async function listStages() {
+  return db.stages.orderBy('order').toArray();
+}
+
+export async function createStage(data) {
+  const id = uid();
+  // Append at the end of the pipeline by default.
+  const max = (await db.stages.toArray()).reduce((m, s) => Math.max(m, s.order ?? 0), -1);
+  await db.stages.add({
+    id,
+    order: max + 1,
+    color: 'open',
+    isTerminal: false,
+    createdAt: now(),
+    updatedAt: now(),
+    ...data,
+  });
+  return id;
+}
+
+export async function updateStage(id, data) {
+  await db.stages.update(id, { ...data, updatedAt: now() });
+}
+
+// Block deletion when any work order currently points to this stage (avoids
+// orphaning a stageId). Returns the count of in-use work orders, 0 if deleted.
+export async function deleteStage(id) {
+  // stageId isn't indexed; scan (work-order lists are small for this app).
+  const orders = await db.workOrders.toArray();
+  const using = orders.filter((o) => o.stageId === id).length;
+  if (using > 0) return using;
+  await db.stages.delete(id);
+  await recordTombstone('stages', id);
+  return 0;
+}
+
+// Move a work order into a stage. Appends a stageHistory entry (seeding history
+// from the legacy status the first time a legacy WO is touched) and keeps the
+// compatibility shadow: status + completedAt derived from the target's isTerminal.
+export async function setWorkOrderStage(orderId, stage) {
+  const order = await db.workOrders.get(orderId);
+  if (!order) return;
+  const stages = await listStages();
+  const history = Array.isArray(order.stageHistory) && order.stageHistory.length
+    ? order.stageHistory
+    : seedStageHistory(order, stages);
+  const enteringTerminal = !!stage.isTerminal;
+  // completedAt: stamp on first entry to ANY terminal stage; keep while moving
+  // between terminal stages; clear when returning to a non-terminal stage.
+  const completedAt = enteringTerminal ? (order.completedAt ?? now()) : null;
+  await updateWorkOrder(orderId, {
+    stageId: stage.id,
+    stageHistory: [...history, { stageId: stage.id, at: now() }],
+    status: enteringTerminal ? 'completed' : 'open',
+    completedAt,
+  });
+}
+
+// Seed the default pipeline exactly once. Flag lives on the profile so deleting
+// all stages won't re-add them (mirrors ensureSeedWorkTypes).
+export async function ensureSeedStages() {
+  const profile = await db.businessProfile.get(PROFILE_ID);
+  if (profile?.stagesSeeded) return;
+  if ((await db.stages.count()) === 0) {
+    await db.stages.bulkAdd(
+      DEFAULT_STAGES.map((s, i) => ({ id: uid(), order: i, createdAt: now(), updatedAt: now(), ...s }))
+    );
+  }
+  await saveProfile({ stagesSeeded: true });
 }
