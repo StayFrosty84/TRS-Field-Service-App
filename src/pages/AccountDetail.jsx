@@ -1,9 +1,11 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, deleteAccount } from '../db/db.js';
-import { fmtDate, getPhones, telHref, fmtPhone } from '../lib/format.js';
+import { fmtDate, getPhones } from '../lib/format.js';
 import { useToast } from '../components/Toast.jsx';
 import Icon from '../components/Icon.jsx';
+import PhoneRow from '../components/PhoneRow.jsx';
+import NavigateLink from '../components/NavigateLink.jsx';
 
 export default function AccountDetail() {
   const { id } = useParams();
@@ -35,14 +37,7 @@ export default function AccountDetail() {
       <h1 style={{ marginTop: 4 }}>{account.name}</h1>
       <div className="card">
         {phones.map((p, i) => (
-          <a
-            key={i}
-            className="btn btn--ghost"
-            href={telHref(p)}
-            style={{ width: '100%', justifyContent: 'flex-start', marginTop: i ? 8 : 0 }}
-          >
-            <Icon name="phone" size={16} /> {p.label ? `${p.label}: ` : ''}{fmtPhone(p)}
-          </a>
+          <PhoneRow key={i} phone={p} style={{ marginTop: i ? 8 : 0 }} />
         ))}
         {account.email && (
           <a
@@ -53,7 +48,9 @@ export default function AccountDetail() {
             <Icon name="mail" size={16} /> {account.email}
           </a>
         )}
-        {account.address && <div className="muted" style={{ marginTop: 8 }}>{account.address}</div>}
+        {account.address && (
+          <NavigateLink text={account.address} style={{ marginTop: 8 }} />
+        )}
         {account.notes && <div className="muted" style={{ marginTop: 6 }}>{account.notes}</div>}
       </div>
 

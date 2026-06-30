@@ -136,6 +136,10 @@ const ICONS = {
       <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
     </>
   ),
+  navigation: <polygon points="3 11 22 2 13 21 11 13 3 11" />,
+  'message-square': (
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  ),
   search: (
     <>
       <circle cx="11" cy="11" r="8" />

@@ -1,9 +1,10 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, deleteContact } from '../db/db.js';
-import { fmtDate, getPhones, telHref, fmtPhone } from '../lib/format.js';
+import { fmtDate, getPhones } from '../lib/format.js';
 import { useToast } from '../components/Toast.jsx';
 import Icon from '../components/Icon.jsx';
+import PhoneRow from '../components/PhoneRow.jsx';
 
 export default function ContactDetail() {
   const { id } = useParams();
@@ -41,14 +42,7 @@ export default function ContactDetail() {
           </div>
         )}
         {phones.map((p, i) => (
-          <a
-            key={i}
-            className="btn btn--ghost"
-            href={telHref(p)}
-            style={{ width: '100%', justifyContent: 'flex-start', marginTop: 8 }}
-          >
-            <Icon name="phone" size={16} /> {p.label ? `${p.label}: ` : ''}{fmtPhone(p)}
-          </a>
+          <PhoneRow key={i} phone={p} style={{ marginTop: 8 }} />
         ))}
         {contact.email && (
           <a

@@ -43,6 +43,12 @@ export function telHref(p) {
   return ext ? `tel:${num},${ext}` : `tel:${num}`;
 }
 
+// sms: link. No extension — you can't auto-text an extension's digits.
+export function smsHref(p) {
+  const num = String(p?.number || '').replace(/[^\d+*#]/g, '');
+  return `sms:${num}`;
+}
+
 export function fmtPhone(p) {
   const num = (p?.number || '').trim();
   const ext = (p?.ext || '').trim();

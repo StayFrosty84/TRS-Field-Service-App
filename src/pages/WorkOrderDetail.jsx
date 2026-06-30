@@ -21,6 +21,7 @@ import { useToast } from '../components/Toast.jsx';
 import { useFeatures } from '../lib/useFeatures.js';
 import AddressAutocomplete from '../components/AddressAutocomplete.jsx';
 import LocationMap from '../components/LocationMap.jsx';
+import NavigateLink from '../components/NavigateLink.jsx';
 import PhotoMarkup from '../components/PhotoMarkup.jsx';
 import Icon from '../components/Icon.jsx';
 
@@ -184,6 +185,7 @@ export default function WorkOrderDetail() {
         }}
       />
       <LocationMap text={locationText} lat={gps?.lat} lng={gps?.lng} />
+      <NavigateLink text={locationText} lat={gps?.lat} lng={gps?.lng} style={{ marginTop: 8 }} />
       <label>Service date</label>
       <input type="date" value={serviceDate} onChange={(e) => setServiceDate(e.target.value)} />
       <label className="row" style={{ gap: 10, alignItems: 'center', marginTop: 12 }}>
