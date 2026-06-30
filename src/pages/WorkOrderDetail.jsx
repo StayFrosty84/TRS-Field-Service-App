@@ -184,6 +184,44 @@ export default function WorkOrderDetail() {
         )}
       </div>
 
+      {features.stages && stages.length > 0 ? (
+        <>
+          <label>Stage</label>
+          <div className="chips" style={{ flexWrap: 'wrap' }}>
+            {stages.map((s) => {
+              const current = resolveStage(order, stages)?.id === s.id;
+              return (
+                <button
+                  type="button"
+                  key={s.id}
+                  className={`chip ${current ? 'chip--active' : ''}`}
+                  onClick={async () => {
+                    if (current) return;
+                    await setWorkOrderStage(id, s);
+                    toast(`Moved to ${s.name}`);
+                  }}
+                >
+                  {s.name}
+                </button>
+              );
+            })}
+          </div>
+          <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+            In {resolveStage(order, stages)?.name || 'this stage'} for {daysInCurrentStage(order, stages)} day(s).
+          </p>
+        </>
+      ) : (
+        <div className="btn-row">
+          <button className="btn btn--ghost" onClick={toggleComplete}>
+            {order.status === 'open' ? (
+              <><Icon name="check" /> Mark completed</>
+            ) : (
+              <><Icon name="rotate-ccw" /> Reopen</>
+            )}
+          </button>
+        </div>
+      )}
+
       <div onBlur={flushSave}>
       <label>Location</label>
       <AddressAutocomplete
@@ -389,44 +427,6 @@ export default function WorkOrderDetail() {
         <button className="btn" onClick={() => navigate(`/work-orders/${id}/bill`)}>
           <Icon name="file-text" /> Generate Bill of Sale
         </button>
-      )}
-
-      {features.stages && stages.length > 0 ? (
-        <>
-          <label>Stage</label>
-          <div className="chips" style={{ flexWrap: 'wrap' }}>
-            {stages.map((s) => {
-              const current = resolveStage(order, stages)?.id === s.id;
-              return (
-                <button
-                  type="button"
-                  key={s.id}
-                  className={`chip ${current ? 'chip--active' : ''}`}
-                  onClick={async () => {
-                    if (current) return;
-                    await setWorkOrderStage(id, s);
-                    toast(`Moved to ${s.name}`);
-                  }}
-                >
-                  {s.name}
-                </button>
-              );
-            })}
-          </div>
-          <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
-            In {resolveStage(order, stages)?.name || 'this stage'} for {daysInCurrentStage(order, stages)} day(s).
-          </p>
-        </>
-      ) : (
-        <div className="btn-row">
-          <button className="btn btn--ghost" onClick={toggleComplete}>
-            {order.status === 'open' ? (
-              <><Icon name="check" /> Mark completed</>
-            ) : (
-              <><Icon name="rotate-ccw" /> Reopen</>
-            )}
-          </button>
-        </div>
       )}
 
       <div className="btn-row">

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, createAccount, createContact, createWorkOrder, addPhoto, listWorkTypes, getProfile } from '../db/db.js';
+import { db, createAccount, createContact, createWorkOrder, addPhoto, listWorkTypes, listStages, setWorkOrderStage, getProfile } from '../db/db.js';
 import { toDateInput, fromDateInput } from '../lib/format.js';
 import { accountWarning } from '../lib/unpaid.js';
+import { useFeatures } from '../lib/useFeatures.js';
 import { useAutosave } from '../lib/useAutosave.js';
 import { loadDraft, saveDraft, clearDraft, draftHasContent } from '../lib/draft.js';
 import { useToast } from '../components/Toast.jsx';
@@ -16,9 +17,11 @@ export default function WorkOrderNew() {
   const location = useLocation();
   const toast = useToast();
 
+  const features = useFeatures();
   const accounts = useLiveQuery(() => db.accounts.orderBy('name').toArray());
   const allContacts = useLiveQuery(() => db.contacts.toArray());
   const workTypes = useLiveQuery(listWorkTypes) || [];
+  const stages = useLiveQuery(listStages) || [];
   const profile = useLiveQuery(getProfile);
 
   // Restore any unsaved draft from a previous visit (cleared on save/Cancel).
@@ -36,7 +39,13 @@ export default function WorkOrderNew() {
   const [unitNumber, setUnitNumber] = useState(draft?.unitNumber || '');
   const [referenceNumber, setReferenceNumber] = useState(draft?.referenceNumber || '');
   const [workTypeId, setWorkTypeId] = useState(draft?.workTypeId || '');
+  const [stageId, setStageId] = useState(draft?.stageId || '');
   const [isEstimate, setIsEstimate] = useState(Boolean(draft?.isEstimate));
+
+  // Default the stage to the first pipeline stage once stages load (unless a draft picked one).
+  useEffect(() => {
+    if (!stageId && stages.length) setStageId(stages[0].id);
+  }, [stages, stageId]);
   const [photos, setPhotos] = useState([]); // { id, blob, url } — not part of the draft
   const [busy, setBusy] = useState(false);
 
@@ -60,6 +69,7 @@ export default function WorkOrderNew() {
     unitNumber,
     referenceNumber,
     workTypeId,
+    stageId,
     isEstimate,
   };
   const { status: draftStatus, cancel: cancelDraft } = useAutosave(
@@ -144,6 +154,13 @@ export default function WorkOrderNew() {
         templateItems: workTypes.find((w) => w.id === workTypeId)?.items || [],
       });
 
+      // createWorkOrder seeds the first stage; if the user picked a different one, move it
+      // there so the legacy status/completedAt shadow + stage history stay correct.
+      const chosenStage = stages.find((s) => s.id === stageId);
+      if (chosenStage && stages[0] && chosenStage.id !== stages[0].id) {
+        await setWorkOrderStage(woId, chosenStage);
+      }
+
       for (const p of photos) await addPhoto(woId, p.blob);
       photos.forEach((p) => URL.revokeObjectURL(p.url));
 
@@ -226,6 +243,24 @@ export default function WorkOrderNew() {
             onChange={(e) => setNewContactPhone(e.target.value)}
           />
         </div>
+      )}
+
+      {features.stages && stages.length > 0 && (
+        <>
+          <label>Stage</label>
+          <div className="chips" style={{ flexWrap: 'wrap' }}>
+            {stages.map((s) => (
+              <button
+                type="button"
+                key={s.id}
+                className={`chip ${stageId === s.id ? 'chip--active' : ''}`}
+                onClick={() => setStageId(s.id)}
+              >
+                {s.name}
+              </button>
+            ))}
+          </div>
+        </>
       )}
 
       <label>Breakdown location</label>
