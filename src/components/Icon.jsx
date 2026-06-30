@@ -193,6 +193,8 @@ const ICONS = {
   ),
 };
 
+export const iconNames = Object.keys(ICONS);
+
 export default function Icon({ name, size = 18, className = '', ...rest }) {
   const node = ICONS[name];
   if (!node) return null;

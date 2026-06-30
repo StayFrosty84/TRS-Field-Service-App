@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { listWorkTypes, createWorkType, updateWorkType, deleteWorkType } from '../db/db.js';
 import SortableList from './SortableList.jsx';
-import Icon from './Icon.jsx';
+import Icon, { iconNames } from './Icon.jsx';
 
 // _k is a stable client-only key for drag reordering; it's dropped on save.
 const blankItem = () => ({ _k: crypto.randomUUID(), description: '', qty: 1, unitPrice: '' });
@@ -11,16 +11,19 @@ export default function WorkTypeManager() {
   const types = useLiveQuery(listWorkTypes) || [];
   const [editing, setEditing] = useState(null); // id | 'new' | null
   const [name, setName] = useState('');
+  const [icon, setIcon] = useState('wrench');
   const [items, setItems] = useState([blankItem()]);
 
   function startNew() {
     setEditing('new');
     setName('');
+    setIcon('wrench');
     setItems([blankItem()]);
   }
   function startEdit(t) {
     setEditing(t.id);
     setName(t.name);
+    setIcon(t.icon || 'wrench');
     setItems(t.items?.length ? t.items.map((i) => ({ _k: crypto.randomUUID(), ...i })) : [blankItem()]);
   }
   function cancel() {
@@ -34,7 +37,7 @@ export default function WorkTypeManager() {
     const clean = items
       .filter((it) => it.description.trim() || Number(it.unitPrice) > 0)
       .map((it) => ({ description: it.description.trim(), qty: Number(it.qty) || 1, unitPrice: Number(it.unitPrice) || 0 }));
-    const data = { name: name.trim() || 'Untitled', items: clean };
+    const data = { name: name.trim() || 'Untitled', icon, items: clean };
     if (editing === 'new') await createWorkType(data);
     else await updateWorkType(editing, data);
     setEditing(null);
@@ -59,6 +62,21 @@ export default function WorkTypeManager() {
         <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
           <label>Work type name</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Tire Job" />
+          <div className="section-title" style={{ marginTop: 12 }}>Icon</div>
+          <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+            {iconNames.map((n) => (
+              <button
+                key={n}
+                type="button"
+                className={`chip${icon === n ? ' chip--active' : ''}`}
+                aria-label={n}
+                aria-pressed={icon === n}
+                onClick={() => setIcon(n)}
+              >
+                <Icon name={n} />
+              </button>
+            ))}
+          </div>
           <div className="section-title" style={{ marginTop: 12 }}>Template line items</div>
           <SortableList
             items={items}
