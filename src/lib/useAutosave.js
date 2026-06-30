@@ -36,5 +36,5 @@ export function useAutosave(data, save, { wait = 700, enabled = true } = {}) {
 
   useEffect(() => () => debounced.flush(), [debounced]);
 
-  return { status, flush: debounced.flush };
+  return { status, flush: debounced.flush, cancel: debounced.cancel };
 }

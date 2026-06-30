@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, createAccount, createContact, createWorkOrder, addPhoto, listWorkTypes, getProfile } from '../db/db.js';
 import { toDateInput, fromDateInput } from '../lib/format.js';
+import { useAutosave } from '../lib/useAutosave.js';
+import { loadDraft, saveDraft, clearDraft, draftHasContent } from '../lib/draft.js';
 import { useToast } from '../components/Toast.jsx';
 import AddressAutocomplete from '../components/AddressAutocomplete.jsx';
 import LocationMap from '../components/LocationMap.jsx';
@@ -18,21 +20,57 @@ export default function WorkOrderNew() {
   const workTypes = useLiveQuery(listWorkTypes) || [];
   const profile = useLiveQuery(getProfile);
 
-  const [accountId, setAccountId] = useState(location.state?.accountId || '');
-  const [newAccountName, setNewAccountName] = useState('');
-  const [contactId, setContactId] = useState('');
-  const [newContactName, setNewContactName] = useState('');
-  const [newContactPhone, setNewContactPhone] = useState('');
-  const [locationText, setLocationText] = useState('');
-  const [gps, setGps] = useState(null);
-  const [serviceDate, setServiceDate] = useState(toDateInput(Date.now()));
-  const [issue, setIssue] = useState('');
-  const [unitNumber, setUnitNumber] = useState('');
-  const [referenceNumber, setReferenceNumber] = useState('');
-  const [workTypeId, setWorkTypeId] = useState('');
-  const [isEstimate, setIsEstimate] = useState(false);
-  const [photos, setPhotos] = useState([]); // { id, blob, url }
+  // Restore any unsaved draft from a previous visit (cleared on save/Cancel).
+  const [draft] = useState(() => loadDraft());
+
+  const [accountId, setAccountId] = useState(location.state?.accountId || draft?.accountId || '');
+  const [newAccountName, setNewAccountName] = useState(draft?.newAccountName || '');
+  const [contactId, setContactId] = useState(draft?.contactId || '');
+  const [newContactName, setNewContactName] = useState(draft?.newContactName || '');
+  const [newContactPhone, setNewContactPhone] = useState(draft?.newContactPhone || '');
+  const [locationText, setLocationText] = useState(draft?.locationText || '');
+  const [gps, setGps] = useState(draft?.gps || null);
+  const [serviceDate, setServiceDate] = useState(draft?.serviceDate || toDateInput(Date.now()));
+  const [issue, setIssue] = useState(draft?.issue || '');
+  const [unitNumber, setUnitNumber] = useState(draft?.unitNumber || '');
+  const [referenceNumber, setReferenceNumber] = useState(draft?.referenceNumber || '');
+  const [workTypeId, setWorkTypeId] = useState(draft?.workTypeId || '');
+  const [isEstimate, setIsEstimate] = useState(Boolean(draft?.isEstimate));
+  const [photos, setPhotos] = useState([]); // { id, blob, url } — not part of the draft
   const [busy, setBusy] = useState(false);
+
+  // Let the user know their previous entries came back.
+  useEffect(() => {
+    if (draftHasContent(draft)) toast('Restored your unsaved work order');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist the in-progress form so leaving the screen doesn't lose it.
+  const draftData = {
+    accountId,
+    newAccountName,
+    contactId,
+    newContactName,
+    newContactPhone,
+    locationText,
+    gps,
+    serviceDate,
+    issue,
+    unitNumber,
+    referenceNumber,
+    workTypeId,
+    isEstimate,
+  };
+  const { status: draftStatus, cancel: cancelDraft } = useAutosave(
+    draftData,
+    (d) => (draftHasContent(d) ? saveDraft(d) : clearDraft())
+  );
+
+  // Drop the draft (and any pending write) — used on Cancel and after a real save.
+  function discardDraft() {
+    cancelDraft();
+    clearDraft();
+  }
 
   const contactsForAccount = useMemo(
     () => (allContacts || []).filter((c) => c.accountId === accountId),
@@ -105,6 +143,7 @@ export default function WorkOrderNew() {
       for (const p of photos) await addPhoto(woId, p.blob);
       photos.forEach((p) => URL.revokeObjectURL(p.url));
 
+      discardDraft(); // committed to a real record now
       toast('Work order saved');
       navigate(`/work-orders/${woId}`, { replace: true });
     } finally {
@@ -264,8 +303,23 @@ export default function WorkOrderNew() {
         </div>
       )}
 
+      <p className="muted" style={{ fontSize: 13, marginTop: 12 }}>
+        {draftStatus === 'saving'
+          ? 'Saving draft…'
+          : draftStatus === 'saved'
+            ? 'Draft saved ✓ — your progress is kept if you leave'
+            : 'Your progress is saved automatically'}
+      </p>
+
       <div className="btn-row">
-        <button type="button" className="btn btn--ghost" onClick={() => navigate(-1)}>
+        <button
+          type="button"
+          className="btn btn--ghost"
+          onClick={() => {
+            discardDraft();
+            navigate(-1);
+          }}
+        >
           Cancel
         </button>
         <button type="submit" className="btn" disabled={busy}>
