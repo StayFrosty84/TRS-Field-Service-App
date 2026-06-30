@@ -16,11 +16,16 @@ Each item: title — one-line mechanic — **(size S/M/L)** — grounding (files
 
 ## ✅ Shipped
 
+- **Settings reorganized into collapsible groups** — everyday items stay visible (Display &
+  accessibility, Reports, Backup); setup/admin items tuck into collapsible groups (Business
+  profile, Lists & templates, Job workflow, Integrations, Advanced), each remembering its
+  open/closed state per device. (`Settings.jsx`, `styles.css`)
 - **Configurable WO stage pipeline** — admin-defined stages (Open → Scheduled → In progress
   → Completed → Invoiced → Paid) replace the binary open/completed toggle; each WO carries
   `stageId` + `stageHistory`, the Dashboard flags "stuck > N days." No migration —
   additive `db.version(5)` `stages` table; legacy records map lazily via `resolveStage` and
   every change keeps the legacy `status`/`completedAt` shadow. Feature-flagged (default on).
+  The stage selector sits at the top of the work-order detail and New Work Order screens.
   (`stages.js`, `StageManager.jsx`, `db.js`)
 - **Partial payments + balance due** — `payments[]` per bill (amount + method + date +
   reference); paid/partial/unpaid derive from the running balance; PDF lists payments with a
