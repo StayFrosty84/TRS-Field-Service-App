@@ -10,6 +10,9 @@ Pick any item under **Ready** and tell Claude `do <item>`. It runs the standard 
 work, and ships per [DEPLOYMENT.md](DEPLOYMENT.md). Items under **Needs brainstorm** are
 bigger; they get their own brainstorm to define scope before planning.
 
+**Moving an item to ✅ Shipped is the last step** — do it only after the work is built,
+verified, and deployed, never before. See [ONBOARDING.md](ONBOARDING.md#how-we-work).
+
 Each item: title — one-line mechanic — **(size S/M/L)** — grounding (files/helpers to reuse).
 
 ---
