@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, createAccount, createContact, createWorkOrder, addPhoto, listWorkTypes, listStages, setWorkOrderStage, getProfile } from '../db/db.js';
+import { db, createAccount, createContact, createWorkOrder, addPhoto, listWorkTypes, listStages, setWorkOrderStage, getProfile, listCatalog } from '../db/db.js';
 import { toDateInput, fromDateInput } from '../lib/format.js';
+import { resolveTemplateItems } from '../lib/templateItems.js';
 import { accountWarning } from '../lib/unpaid.js';
 import { useFeatures } from '../lib/useFeatures.js';
 import { useAutosave } from '../lib/useAutosave.js';
@@ -21,6 +22,7 @@ export default function WorkOrderNew() {
   const accounts = useLiveQuery(() => db.accounts.orderBy('name').toArray());
   const allContacts = useLiveQuery(() => db.contacts.toArray());
   const workTypes = useLiveQuery(listWorkTypes) || [];
+  const catalog = useLiveQuery(listCatalog) || [];
   const stages = useLiveQuery(listStages) || [];
   const profile = useLiveQuery(getProfile);
 
@@ -151,7 +153,10 @@ export default function WorkOrderNew() {
         referenceNumber: referenceNumber.trim(),
         isEstimate,
         workTypeId: workTypeId || null,
-        templateItems: workTypes.find((w) => w.id === workTypeId)?.items || [],
+        templateItems: resolveTemplateItems(
+          workTypes.find((w) => w.id === workTypeId)?.items || [],
+          new Map(catalog.map((c) => [c.id, c]))
+        ).map(({ description, qty, unitPrice }) => ({ description, qty, unitPrice })),
       });
 
       // createWorkOrder seeds the first stage; if the user picked a different one, move it

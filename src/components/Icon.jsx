@@ -191,6 +191,141 @@ const ICONS = {
       <circle cx="15" cy="19" r="1" />
     </>
   ),
+  // Vehicles & roadside (field-service). Same 24x24 stroke convention; drawn in the
+  // Lucide (ISC-licensed) style so they theme via currentColor like everything above.
+  car: (
+    <>
+      <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
+      <circle cx="7" cy="17" r="2" />
+      <path d="M9 17h6" />
+      <circle cx="17" cy="17" r="2" />
+    </>
+  ),
+  truck: (
+    <>
+      <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" />
+      <path d="M15 18H9" />
+      <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 18.52 8H14" />
+      <circle cx="17" cy="18" r="2" />
+      <circle cx="7" cy="18" r="2" />
+    </>
+  ),
+  'tow-truck': (
+    <>
+      <path d="M20 17V9a1 1 0 0 0-1-1h-5v9" />
+      <path d="M14 17H4v-4l3-1" />
+      <path d="M14 9 4 5" />
+      <path d="M4 5v4" />
+      <path d="M2 9h4" />
+      <circle cx="8" cy="17" r="2" />
+      <circle cx="17" cy="17" r="2" />
+    </>
+  ),
+  'semi-truck': (
+    <>
+      <path d="M2 16V7a1 1 0 0 1 1-1h9v10" />
+      <path d="M12 9h4l4 4v3h-2" />
+      <path d="M13 16h3" />
+      <circle cx="7" cy="16" r="2" />
+      <circle cx="11" cy="16" r="2" />
+      <circle cx="18" cy="16" r="2" />
+    </>
+  ),
+  bus: (
+    <>
+      <path d="M8 6v6" />
+      <path d="M15 6v6" />
+      <path d="M2 12h19.6" />
+      <path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3" />
+      <circle cx="7" cy="18" r="2" />
+      <path d="M9 18h5" />
+      <circle cx="16" cy="18" r="2" />
+    </>
+  ),
+  rv: (
+    <>
+      <path d="M2 16V8a1 1 0 0 1 1-1h9v9" />
+      <path d="M12 9h3l4 3v4h-1" />
+      <path d="M8 16h3" />
+      <path d="M4 10h4v3H4z" />
+      <circle cx="6" cy="16" r="2" />
+      <circle cx="16" cy="16" r="2" />
+    </>
+  ),
+  trailer: (
+    <>
+      <path d="M2 16V8a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v8" />
+      <path d="M14 13h3l4 2v1" />
+      <path d="M5 16h1" />
+      <path d="M12 16h1" />
+      <circle cx="9" cy="16" r="2" />
+    </>
+  ),
+  tire: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="3.5" />
+      <path d="M12 3v3.5M12 17.5V21M3 12h3.5M17.5 12H21" />
+      <path d="m5.6 5.6 2.5 2.5M15.9 15.9l2.5 2.5M18.4 5.6l-2.5 2.5M8.1 15.9l-2.5 2.5" />
+    </>
+  ),
+  'tire-donut': (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="12" cy="12" r="1" />
+    </>
+  ),
+  'tire-tread': (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5" />
+      <path d="M19 12h2M12 5V3M5 12H3M12 19v2M16.95 7.05 18.36 5.64M7.05 7.05 5.64 5.64M7.05 16.95 5.64 18.36M16.95 16.95 18.36 18.36" />
+    </>
+  ),
+  'tire-wheel': (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5.5" />
+      <circle cx="12" cy="9.4" r=".9" />
+      <circle cx="9.53" cy="11.2" r=".9" />
+      <circle cx="10.47" cy="14.1" r=".9" />
+      <circle cx="13.53" cy="14.1" r=".9" />
+      <circle cx="14.47" cy="11.2" r=".9" />
+      <circle cx="12" cy="12" r="1" />
+    </>
+  ),
+  battery: (
+    <>
+      <path d="M6 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
+      <path d="M16 7h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2" />
+      <path d="M22 11v2" />
+      <path d="m11 7-3 5h4l-3 5" />
+    </>
+  ),
+  'fuel-can': (
+    <>
+      <path d="M4 8a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+      <path d="M14 10h2l4 4v4a2 2 0 0 1-2 2h-1" />
+      <path d="M8 6V5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1" />
+      <path d="M7 11h4" />
+    </>
+  ),
+  key: (
+    <>
+      <path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L21 5" />
+      <path d="m21 2-9.6 9.6" />
+      <circle cx="7.5" cy="15.5" r="5.5" />
+    </>
+  ),
+  'traffic-cone': (
+    <>
+      <path d="M9.3 6.2a4.55 4.55 0 0 0 5.4 0" />
+      <path d="M7.9 10.7c.9.8 2.4 1.3 4.1 1.3s3.2-.5 4.1-1.3" />
+      <path d="M13.9 3.5a1.93 1.93 0 0 0-3.8-.1l-3 10c-.1.2-.1.4-.1.6 0 1.7 2.7 3 6 3s6-1.3 6-3c0-.2 0-.4-.1-.6Z" />
+      <path d="m5.7 15.4-2.4 2.7c-.4.4-.5 1-.3 1.5.4 1.4 3.9 2.4 8.9 2.4s8.5-1 8.9-2.4c.2-.5.1-1.1-.3-1.5l-2.4-2.7" />
+    </>
+  ),
 };
 
 export const iconNames = Object.keys(ICONS);

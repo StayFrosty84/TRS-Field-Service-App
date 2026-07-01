@@ -342,9 +342,39 @@ export async function updateCatalogItem(id, data) {
   await db.catalogItems.update(id, { ...data, updatedAt: now() });
 }
 
+// Names of work types whose template items reference this catalog item.
+export async function catalogItemUsage(catalogItemId) {
+  const types = await db.workTypes.toArray();
+  return types
+    .filter((t) => (t.items || []).some((it) => it.catalogItemId === catalogItemId))
+    .map((t) => t.name);
+}
+
 export async function deleteCatalogItem(id) {
+  const usedIn = await catalogItemUsage(id);
+  if (usedIn.length) {
+    const err = new Error(`In use by ${usedIn.length} work type(s)`);
+    err.usedIn = usedIn;
+    throw err;
+  }
   await db.catalogItems.delete(id);
   await recordTombstone('catalogItems', id);
+}
+
+// Apply a product's "use in work types" checklist: ensure a { catalogItemId, qty:1 }
+// row on each checked work type and drop it from the rest. Idempotent — never dupes.
+export async function setCatalogItemWorkTypes(catalogItemId, workTypeIds) {
+  const wanted = new Set(workTypeIds);
+  const types = await db.workTypes.toArray();
+  for (const t of types) {
+    const items = t.items || [];
+    const has = items.some((it) => it.catalogItemId === catalogItemId);
+    if (wanted.has(t.id) && !has) {
+      await updateWorkType(t.id, { items: [...items, { catalogItemId, qty: 1 }] });
+    } else if (!wanted.has(t.id) && has) {
+      await updateWorkType(t.id, { items: items.filter((it) => it.catalogItemId !== catalogItemId) });
+    }
+  }
 }
 
 // ---- Work types -------------------------------------------------------------
@@ -378,6 +408,17 @@ export async function updateWorkType(id, data) {
 export async function deleteWorkType(id) {
   await db.workTypes.delete(id);
   await recordTombstone('workTypes', id);
+}
+
+// Duplicate a work type (name suffixed "(copy)"), with an independent items array.
+export async function cloneWorkType(id) {
+  const t = await db.workTypes.get(id);
+  if (!t) return null;
+  return createWorkType({
+    name: `${t.name} (copy)`,
+    icon: t.icon,
+    items: (t.items || []).map((it) => ({ ...it })),
+  });
 }
 
 // Seed starter work types exactly once. The flag lives on the profile so deleting
