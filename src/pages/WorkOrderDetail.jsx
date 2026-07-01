@@ -19,7 +19,7 @@ import {
   updatePhoto,
 } from '../db/db.js';
 import { resolveStage, stageColorClass, daysInCurrentStage } from '../lib/stages.js';
-import { toDateInput, fromDateInput, money, fmtDate, getPhones, telHref, fmtPhone } from '../lib/format.js';
+import { toDateInput, fromDateInput, money, fmtDate, getPhones } from '../lib/format.js';
 import { normalizePayments, amountPaid, billBalance, paymentState } from '../lib/payments.js';
 import { shareFile, openBlob } from '../lib/share.js';
 import { useToast } from '../components/Toast.jsx';
@@ -27,6 +27,7 @@ import { useFeatures } from '../lib/useFeatures.js';
 import AddressAutocomplete from '../components/AddressAutocomplete.jsx';
 import LocationMap from '../components/LocationMap.jsx';
 import NavigateLink from '../components/NavigateLink.jsx';
+import PhoneRow from '../components/PhoneRow.jsx';
 import PhotoMarkup from '../components/PhotoMarkup.jsx';
 import Icon from '../components/Icon.jsx';
 
@@ -166,21 +167,37 @@ export default function WorkOrderDetail() {
         <div>
           <Icon name="building" size={15} /> <Link to={`/accounts/${account?.id}`}>{account?.name || 'Unknown'}</Link>
         </div>
+        {getPhones(account).map((p, i) => (
+          <PhoneRow key={`ap${i}`} phone={p} style={{ marginTop: 8 }} />
+        ))}
+        {account?.email && (
+          <a
+            className="btn btn--ghost"
+            href={`mailto:${account.email}`}
+            style={{ width: '100%', justifyContent: 'flex-start', marginTop: 8 }}
+          >
+            <Icon name="mail" size={16} /> {account.email}
+          </a>
+        )}
         {contact && (
-          <div>
-            <Icon name="user" size={15} /> <Link to={`/contacts/${contact.id}`}>{contact.name}</Link>
-            {(() => {
-              const p = getPhones(contact)[0];
-              return p ? (
-                <>
-                  {' · '}
-                  <a href={telHref(p)}>{fmtPhone(p)}</a>
-                </>
-              ) : (
-                ''
-              );
-            })()}
-          </div>
+          <>
+            <div style={{ marginTop: 12 }}>
+              <Icon name="user" size={15} /> <Link to={`/contacts/${contact.id}`}>{contact.name}</Link>
+              {contact.role ? <span className="muted"> · {contact.role}</span> : ''}
+            </div>
+            {getPhones(contact).map((p, i) => (
+              <PhoneRow key={`cp${i}`} phone={p} style={{ marginTop: 8 }} />
+            ))}
+            {contact.email && (
+              <a
+                className="btn btn--ghost"
+                href={`mailto:${contact.email}`}
+                style={{ width: '100%', justifyContent: 'flex-start', marginTop: 8 }}
+              >
+                <Icon name="mail" size={16} /> {contact.email}
+              </a>
+            )}
+          </>
         )}
       </div>
 
