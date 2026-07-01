@@ -19,7 +19,6 @@ import WorkTypeManager from '../components/WorkTypeManager.jsx';
 import ListManager from '../components/ListManager.jsx';
 import StageManager from '../components/StageManager.jsx';
 import ImportExport from '../components/ImportExport.jsx';
-import CloudSync from '../components/CloudSync.jsx';
 import Icon from '../components/Icon.jsx';
 
 const EMPTY = {
@@ -393,9 +392,6 @@ export default function Settings() {
             </>
           )}
         </div>
-
-        <div className="section-title">Cloud sync (Google Drive)</div>
-        <CloudSync />
       </Section>
 
       <Section id="advanced" title="Advanced">
