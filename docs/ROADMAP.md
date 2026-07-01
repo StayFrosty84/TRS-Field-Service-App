@@ -19,6 +19,12 @@ Each item: title — one-line mechanic — **(size S/M/L)** — grounding (files
 
 ## ✅ Shipped
 
+- **Admin-editable picklists** — payment methods, phone labels, and account terms are
+  admin-managed from Settings → Lists & templates via a generic `lists` table (`db.version(6)`)
+  + a shared `ListManager` editor and `ListPicker`. Records store values by name (no
+  migration; deleting a value never orphans data). The Do-not-service warning moved to a
+  dedicated account `doNotService` flag (legacy `terms === 'Do-not-service'` still honored).
+  Stages intentionally kept in their own table. (`db.js`, `ListManager.jsx`, `ListPicker.jsx`)
 - **Settings reorganized into collapsible groups** — everyday items stay visible (Display &
   accessibility, Reports, Backup); setup/admin items tuck into collapsible groups (Business
   profile, Lists & templates, Job workflow, Integrations, Advanced), each remembering its
@@ -70,6 +76,41 @@ Verified in code. Listed so they aren't re-proposed.
 - **Last-sync visibility** — show last backup/sync date-time; warn in-app if stale; surface
   "cloud sync" as a global action on Home. **(S)** — extends `backup.js` / `BackupReminder.jsx`.
 - **Per-field help text** — short hints explaining where each field lands on the PDF. **(S)**
+- **Outstanding-balance warning (configurable threshold)** — when an account's total
+  outstanding balance exceeds an admin-set threshold (default $1,000), show a warning banner
+  both when starting a new WO for that account and on the WO detail screen. **(S)** — reuse
+  `accountOutstanding` (per-account balance) and the `accountWarning` banner pattern in
+  `unpaid.js`; render alongside the existing 1★ / Do-not-service banner in `WorkOrderNew.jsx`
+  and `WorkOrderDetail.jsx`; store the threshold as a Settings value.
+- **Account row badges** — show outstanding balance, ⭐ rating, and terms flag on each
+  Accounts list row (today rows show only name + phone/address). **(S)** — `Accounts.jsx`
+  rows + `accountOutstanding` / `rating` (both already exist).
+- **Payment-status pill on Work rows** — colored paid / partial / unpaid pill per row.
+  **(S)** — `Work.jsx` `billByWo` + `payments.js`.
+- **Tab badge counts** — count of unpaid bills on the Work tab and stuck jobs on Home, shown
+  as nav badges. **(S)** — `Layout.jsx` nav; reuse `unpaid.js` and `isStuck` from `stages.js`.
+- **Recents on Home** — quick chips linking to recently viewed work orders / accounts.
+  **(S)** — `Home.jsx`.
+- **Duplicate line item ("add another like this")** — one-tap clone of a bill line. **(S)** —
+  `BillEditor.jsx` + existing `SortableList.jsx`.
+- **Aging buckets on unpaid (30/60/90)** — color-code overdue balances by age on the Home
+  unpaid shortlist and Account detail. **(S–M)** — `unpaid.js`, `Home.jsx`.
+- **Overdue-to-start flag (+ expected-start date)** — add an `expectedStartDate` field to the
+  WO, then flag jobs whose expected start has passed but aren't started yet (deliberately
+  minimal — no Home agenda view). **(S)** — new field in `WorkOrderNew.jsx` / `db.js`; reuse
+  the `isStuck` badge pattern from `stages.js`.
+- **Revenue by work type** — Reports breakdown of billed/paid by `workTypeId`. **(S)** —
+  `Reports.jsx`; WO already records `workTypeId`.
+- **Custom share/email message template** — editable default text used when sending a bill via
+  the share sheet. **(S)** — `share.js` `text` param + a Settings value.
+- **Configurable PDF fields (visibility, global)** — admin on/off toggles in Settings for each
+  optional Bill of Sale field (logo, seller phone/email/address, dates, payments summary,
+  contact name/phone/email, Unit #, Reference #, issue, signature, terms/notes, photos); core
+  fields (account name, line-items table, totals, bill #) stay always-on. **(M)** — store a
+  `pdfFields` boolean map on `businessProfile`; guard each section in `pdf.js` and the
+  `infoLines` / `paymentLines` helpers in `pdfText.js`; add a toggle panel under Settings →
+  Business profile. Reconcile with **Business logo + custom terms on Bill of Sale PDF**
+  (logo/terms visibility overlaps).
 
 ---
 
@@ -79,6 +120,12 @@ Verified in code. Listed so they aren't re-proposed.
   `{description, qty, unitPrice}`; normalize to `{catalogItemId, qty}` + a price snapshot so
   templates draw from the Parts & Labor catalog. **(L)** — reuse `CatalogPicker.jsx`;
   "think SF data model."
+- **Work-type template line items (editor tab)** — add a tab to the work-type editor for
+  defining default template line items per work type, so selecting a work type on a new WO
+  pre-fills its line items. **(M)** — extends `WorkTypeManager.jsx` (already edits icon +
+  fields); design alongside **Catalog-linked template line items** so the line-item shape is
+  decided once (free-form vs. `catalogItemId`); WO already records `workTypeId` for the
+  pre-fill hook.
 - **Work type on each WO row** — show the work type used, per row. **(S — dependency now
   met)** — WO already records `workTypeId`; this is just rendering it in `OrderRow`.
 - **Estimate → Bill conversion + win-rate** — a "Convert estimate to bill" action; Reports
@@ -87,6 +134,34 @@ Verified in code. Listed so they aren't re-proposed.
   work type per Account; "Repeat last job" (clone previous WO); first-run onboarding
   checklist; validation-rule toggles (require photo before completing / signature before
   paid); required-contact warning before billing. **(M each)**
+- **Inline quick-add account/contact from New WO** — create an account/contact on the fly
+  inside the WO form instead of navigating to the Accounts tab and back. **(M)** —
+  `WorkOrderNew.jsx` pickers; reuse minimal `AccountForm` / `ContactForm` fields.
+- **Global search (cross-entity)** — one search box in the top bar spanning work orders,
+  accounts, and contacts from any tab (today search is per-list). **(M)** — reuse
+  `SearchBar.jsx` / `filterWorkOrders`; `Layout.jsx` topbar is currently empty except Back.
+- **Swipe actions on list rows** — swipe a row for Call / Navigate / Mark paid. **(M)** —
+  `Work.jsx` / `Accounts.jsx` rows; reuse `mapsHref` / `smsHref` and `markBillPaid`.
+- **Business logo + custom terms on Bill of Sale PDF** — upload a logo and set editable
+  footer/terms text that render on the PDF. **(M)** — `pdf.js` layout + `businessProfile`;
+  decide logo storage/sizing.
+- **PDF layout: relabel + reorder fields** — long-term extension of **Configurable PDF fields
+  (visibility)**: also rename field labels (e.g. "Unit #" → "Truck #") and reorder sections.
+  **(L)** — depends on the visibility item; `pdf.js` draws in a fixed sequence today, so this
+  needs a data-driven render loop over a field registry (`{ key, label, order, visible }`) —
+  a meaningful refactor of the render path.
+- **Asset / truck tracking (per account) — build FIRST** — new `assets` table keyed to an
+  account (make / model / VIN / unit # / plate / mileage / notes + derived service history);
+  the WO gains an `assetId` and snapshots the asset's unit # onto its existing `unitNumber`.
+  Model after Salesforce Field Service assets. **(M–L)** — new `db.js` table + an account-scoped
+  picker (mirrors the contacts pattern); absorbs the parking-lot Truck/Vehicle (Make/Model)
+  note. Prerequisite for recurring maintenance jobs. 📄 Spec:
+  [specs/2026-06-30-assets-maintenance-plans-design.md](superpowers/specs/2026-06-30-assets-maintenance-plans-design.md).
+- **Recurring / maintenance jobs (maintenance plans) — build AFTER asset tracking** — time-only
+  cadence per asset; due plans surface on Home ("Maintenance due") for one-tap WO creation
+  (suggest-and-confirm, no silent writes); completing the job advances the plan. **(L)** —
+  depends on **Asset / truck tracking**. 📄 Spec:
+  [specs/2026-06-30-assets-maintenance-plans-design.md](superpowers/specs/2026-06-30-assets-maintenance-plans-design.md).
 - **Tighter backup reminder** — configurable interval (today fixed at 14 days in
   `BackupReminder.jsx`); the original ask was every 2/6 hours. **(S)**
 
@@ -94,8 +169,8 @@ Verified in code. Listed so they aren't re-proposed.
 
 ## Parking lot (raw — triage before building)
 
-- Truck/Vehicle info section on the WO (Make / Model). Note: `unitNumber` already exists on
-  the WO — only Make/Model would be new.
+- Truck/Vehicle info section on the WO (Make / Model). ⬆️ **Superseded by Asset / truck
+  tracking (per account)** in Needs brainstorm — Make/Model become asset fields there.
 - Customer reference number field — ⚠️ likely done: `referenceNumber` already exists on the
   WO (separate from the internal bill #). Verify before building.
 - Auto-save with undo **or** an unsaved-changes warning when editing a WO (admin toggle to
