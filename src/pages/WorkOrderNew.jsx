@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, createAccount, createContact, createWorkOrder, addPhoto, listWorkTypes, listStages, setWorkOrderStage, getProfile, listCatalog } from '../db/db.js';
 import { toDateInput, fromDateInput } from '../lib/format.js';
+import { computeRoundTripMiles, resolveOrigin, resolveDest } from '../lib/mileage.js';
 import { resolveTemplateItems } from '../lib/templateItems.js';
 import { accountWarning } from '../lib/unpaid.js';
 import { useFeatures } from '../lib/useFeatures.js';
@@ -36,6 +37,7 @@ export default function WorkOrderNew() {
   const [newContactPhone, setNewContactPhone] = useState(draft?.newContactPhone || '');
   const [locationText, setLocationText] = useState(draft?.locationText || '');
   const [gps, setGps] = useState(draft?.gps || null);
+  const [miles, setMiles] = useState(draft?.miles ?? null);
   const [serviceDate, setServiceDate] = useState(draft?.serviceDate || toDateInput(Date.now()));
   const [issue, setIssue] = useState(draft?.issue || '');
   const [unitNumber, setUnitNumber] = useState(draft?.unitNumber || '');
@@ -66,6 +68,7 @@ export default function WorkOrderNew() {
     newContactPhone,
     locationText,
     gps,
+    miles,
     serviceDate,
     issue,
     unitNumber,
@@ -111,11 +114,22 @@ export default function WorkOrderNew() {
     });
   }
 
+  // Recompute round-trip miles from the shop to a job location. Silent on failure /
+  // offline — we just keep whatever we had. Not awaited by callers.
+  async function recomputeMiles(location) {
+    const origin = resolveOrigin(profile);
+    const dest = resolveDest(location);
+    if (!origin || !dest || !navigator.onLine) return;
+    const m = await computeRoundTripMiles({ origin, dest });
+    if (m != null) setMiles(m);
+  }
+
   function useShopAddress() {
     const addr = (profile?.address || '').trim();
     if (!addr) return toast('Add your business address in Settings first');
     setLocationText(addr);
     setGps(null);
+    setMiles(0);
   }
 
   async function save(e) {
@@ -143,10 +157,18 @@ export default function WorkOrderNew() {
         });
       }
 
+      const finalLocation = { text: locationText.trim(), ...(gps || {}) };
+      let finalMiles = miles;
+      if (navigator.onLine) {
+        const m = await computeRoundTripMiles({ origin: resolveOrigin(profile), dest: resolveDest(finalLocation) });
+        if (m != null) finalMiles = m;
+      }
+
       const woId = await createWorkOrder({
         accountId: acctId,
         contactId: ctctId || null,
-        location: { text: locationText.trim(), ...(gps || {}) },
+        location: finalLocation,
+        roundTripMiles: finalMiles ?? undefined,
         serviceDate: fromDateInput(serviceDate) || Date.now(),
         issue: issue.trim(),
         unitNumber: unitNumber.trim(),
@@ -278,7 +300,9 @@ export default function WorkOrderNew() {
         }}
         onPick={({ label, lat, lng }) => {
           setLocationText(label);
-          setGps(lat != null && lng != null ? { lat, lng } : null);
+          const g = lat != null && lng != null ? { lat, lng } : null;
+          setGps(g);
+          recomputeMiles({ text: label, ...(g || {}) });
         }}
       />
       <div className="row" style={{ gap: 8, marginTop: 8 }}>
@@ -287,6 +311,9 @@ export default function WorkOrderNew() {
         </button>
       </div>
       <LocationMap text={locationText} lat={gps?.lat} lng={gps?.lng} />
+      <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+        Round trip from shop: {miles != null ? `${miles} mi` : '—'}
+      </p>
 
       <label>Unit #</label>
       <input value={unitNumber} onChange={(e) => setUnitNumber(e.target.value)} />
