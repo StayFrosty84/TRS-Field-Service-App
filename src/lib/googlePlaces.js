@@ -17,13 +17,15 @@ const REQUEST_DEFAULTS = {
   language: 'en',
 };
 
+let bootstrapPromise = null;
 let loaderPromise = null;
 let sessionToken = null;
 
-// Inject the Maps JS bootstrap once with the runtime key, then resolve the Places library.
-function loadPlaces(key) {
-  if (loaderPromise) return loaderPromise;
-  loaderPromise = new Promise((resolve, reject) => {
+// Inject the Maps JS bootstrap script once. Separate from importLibrary so multiple
+// libraries (places, routes) can each await the same bootstrap.
+function bootstrap(key) {
+  if (bootstrapPromise) return bootstrapPromise;
+  bootstrapPromise = new Promise((resolve, reject) => {
     if (window.google?.maps?.importLibrary) return resolve();
     const s = document.createElement('script');
     s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
@@ -32,12 +34,25 @@ function loadPlaces(key) {
     s.async = true;
     s.onload = resolve;
     s.onerror = () => {
-      loaderPromise = null; // let a later attempt retry after a transient failure
+      bootstrapPromise = null; // let a later attempt retry after a transient failure
       reject(new Error('Failed to load Google Maps'));
     };
     document.head.appendChild(s);
-  }).then(() => window.google.maps.importLibrary('places'));
+  });
+  return bootstrapPromise;
+}
+
+// Resolve the Places library (used by autocomplete).
+function loadPlaces(key) {
+  if (loaderPromise) return loaderPromise;
+  loaderPromise = bootstrap(key).then(() => window.google.maps.importLibrary('places'));
   return loaderPromise;
+}
+
+// Resolve the Routes library (used by DistanceMatrixService).
+export async function loadRoutes(key) {
+  await bootstrap(key);
+  return window.google.maps.importLibrary('routes');
 }
 
 // Pure: map a fetched Place to the app's { label, lat, lng } shape. location may expose
