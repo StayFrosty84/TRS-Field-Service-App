@@ -70,16 +70,23 @@ export default function BillEditor() {
       } else {
         setCcFeeRate(defaultCcRate);
         if (profile?.taxRate) setTaxRate(String(profile.taxRate));
-        if (order.templateItems?.length) {
-          setItems(
-            order.templateItems.map((li) => ({
-              id: crypto.randomUUID(),
-              description: li.description,
-              qty: li.qty ?? 1,
-              unitPrice: li.unitPrice ?? '',
-            }))
-          );
+        const seeded = (order.templateItems || []).map((li) => ({
+          id: crypto.randomUUID(),
+          description: li.description,
+          qty: li.qty ?? 1,
+          unitPrice: li.unitPrice ?? '',
+        }));
+        // Seed a billable Mileage line exactly once, independent of work type.
+        if (!order.mileageBilled && order.roundTripMiles > 0 && profile?.mileageRate) {
+          seeded.push({
+            id: crypto.randomUUID(),
+            description: 'Mileage',
+            qty: order.roundTripMiles,
+            unitPrice: profile.mileageRate,
+          });
+          await updateWorkOrder(order.id, { mileageBilled: true });
         }
+        if (seeded.length) setItems(seeded);
       }
     })();
   }, [id]);

@@ -25,6 +25,7 @@ export default function Reports() {
     const yearStart = new Date(now.getFullYear(), 0, 1).getTime();
 
     let mtdBilled = 0, mtdPaid = 0, ytdBilled = 0, ytdPaid = 0;
+    let mtdMiles = 0, ytdMiles = 0;
     const byAccount = {};
     // last 12 months buckets
     const months = [];
@@ -47,10 +48,17 @@ export default function Reports() {
       const mk = `${d.getFullYear()}-${d.getMonth()}`;
       if (mk in monthIndex) months[monthIndex[mk]].total += total;
     }
+    for (const o of Object.values(data.orders)) {
+      const miles = o.roundTripMiles || 0;
+      if (!miles) continue;
+      const t = o.serviceDate || 0;
+      if (t >= monthStart) mtdMiles += miles;
+      if (t >= yearStart) ytdMiles += miles;
+    }
     const accountRows = Object.entries(byAccount).sort((a, b) => b[1] - a[1]);
     const maxMonth = Math.max(1, ...months.map((m) => m.total));
     const tax = salesTaxSummary(data.bills);
-    return { mtdBilled, mtdPaid, ytdBilled, ytdPaid, accountRows, months, maxMonth, tax };
+    return { mtdBilled, mtdPaid, ytdBilled, ytdPaid, mtdMiles, ytdMiles, accountRows, months, maxMonth, tax };
   }, [data]);
 
   if (!data) return null;
@@ -71,7 +79,7 @@ export default function Reports() {
       const s = String(v ?? '');
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const header = ['Date', 'Bill #', 'Account', 'Subtotal', 'Tax', 'Card fee', 'Total', 'Status', 'Method'];
+    const header = ['Date', 'Bill #', 'Account', 'Subtotal', 'Tax', 'Card fee', 'Total', 'Status', 'Method', 'Round trip (mi)'];
     const rows = [...data.bills]
       .sort((a, b) => billTs(a) - billTs(b))
       .map((b) => {
@@ -87,6 +95,7 @@ export default function Reports() {
           (b.total || 0).toFixed(2),
           b.paymentStatus || 'unpaid',
           b.paymentMethod || '',
+          (data.orders[b.workOrderId]?.roundTripMiles || 0).toFixed(1),
         ].map(esc).join(',');
       });
     const csv = [header.join(','), ...rows].join('\n');
@@ -123,6 +132,18 @@ export default function Reports() {
         <div className="stat">
           <div className="stat__label">Paid</div>
           <div className="stat__value">{money(r.ytdPaid)}</div>
+        </div>
+      </div>
+
+      <div className="section-title">Business mileage</div>
+      <div className="stat-grid">
+        <div className="stat">
+          <div className="stat__label">This month</div>
+          <div className="stat__value">{r.mtdMiles.toFixed(1)} mi</div>
+        </div>
+        <div className="stat">
+          <div className="stat__label">Year to date</div>
+          <div className="stat__value">{r.ytdMiles.toFixed(1)} mi</div>
         </div>
       </div>
 
