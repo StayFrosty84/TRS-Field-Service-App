@@ -30,19 +30,37 @@ flow — beta tracks `main`.
 
 ## Promote to stable
 
-Cut a GitHub Release. A **full** release updates `/stable/`; a prerelease does not.
+`/stable/` builds from the latest **full** (non-prerelease) GitHub Release; a prerelease
+does not touch it. So promotion = cut a full release from the commit you want stable to serve.
+
+**Stable is a curated subset of beta, not a snapshot of `main`.** Some features are kept
+beta-only (currently **Google Drive sync**). Those excluded features live only on `main`, so
+stable is cut from a dedicated **`stable-wave2`** branch = `main` minus the beta-only code —
+*not* from `main` directly. Keep the two in sync each promotion:
 
 ```bash
-# Stable
-gh release create v3.2.0 --target main --title "v3.2.0" --notes "…"
+# 1. Fold the new beta work into the stable branch, then re-remove the beta-only bits
+git checkout stable-wave2
+git merge main            # resolve so src/lib/sync/* + CloudSync stay OUT
+npm run icons && npx vitest run && npm run build   # verify green
+git push trs stable-wave2
 
-# Beta milestone (does NOT touch /stable/)
-gh release create v3.2.0-beta.1 --target main --prerelease --title "…" --notes "…"
+# 2. Cut a FULL release targeting that branch (this becomes /stable/'s source)
+gh release create v3.3.0 --target stable-wave2 --title "v3.3.0 — stable" --notes "…"
+
+# 3. Trigger a main-ref Pages run so /stable/ rebuilds from the new release tag
+gh workflow run deploy.yml --ref main
 ```
 
-- **Versioning:** `vMAJOR.MINOR.PATCH`. Current beta release: **`v3.1.0`** (prerelease).
-- Use `--target main`. A short commit SHA fails with
+Step 3 is required: the `release: published` run fires on a tag ref, which the
+`github-pages` environment rejects (see the gotcha below). A `main`-ref run (push or
+`workflow_dispatch`) re-queries `releases/latest` and rebuilds `/stable/` from it.
+
+- **Versioning:** `vMAJOR.MINOR.PATCH`. Stable: **`v3.2.0`**; beta (`main`): `3.2.0-beta.1`.
+- Use `--target <branch>` (e.g. `stable-wave2`). A short commit SHA fails with
   `Release.target_commitish is invalid` — pass the branch name, not the SHA.
+- Beta milestone that does NOT touch `/stable/`:
+  `gh release create v3.3.0-beta.1 --target main --prerelease …`
 
 ## Gotcha: the cosmetic release-run "failure"
 
