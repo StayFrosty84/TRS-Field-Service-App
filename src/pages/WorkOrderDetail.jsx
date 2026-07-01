@@ -258,14 +258,16 @@ export default function WorkOrderDetail() {
           setLocationText(label);
           const g = lat != null && lng != null ? { lat, lng } : null;
           setGps(g);
+          // New address invalidates the cached miles until a fresh value returns.
+          setMiles(null);
           if (navigator.onLine) {
             computeRoundTripMiles({ origin: resolveOrigin(profile), dest: resolveDest({ text: label, ...(g || {}) }) })
               .then((m) => {
-                if (m != null) {
-                  setMiles(m);
-                  updateWorkOrder(id, { roundTripMiles: m });
-                }
+                setMiles(m);
+                updateWorkOrder(id, { roundTripMiles: m ?? null });
               });
+          } else {
+            updateWorkOrder(id, { roundTripMiles: null });
           }
         }}
       />

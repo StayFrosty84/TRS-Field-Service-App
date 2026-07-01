@@ -117,11 +117,11 @@ export default function WorkOrderNew() {
   // Recompute round-trip miles from the shop to a job location. Silent on failure /
   // offline — we just keep whatever we had. Not awaited by callers.
   async function recomputeMiles(location) {
+    setMiles(null); // invalidate the previous address's miles until a fresh value returns
     const origin = resolveOrigin(profile);
     const dest = resolveDest(location);
     if (!origin || !dest || !navigator.onLine) return;
-    const m = await computeRoundTripMiles({ origin, dest });
-    if (m != null) setMiles(m);
+    setMiles(await computeRoundTripMiles({ origin, dest })); // null on failure = no stale value
   }
 
   function useShopAddress() {
@@ -158,10 +158,11 @@ export default function WorkOrderNew() {
       }
 
       const finalLocation = { text: locationText.trim(), ...(gps || {}) };
+      // Online: recompute authoritatively (fresh value or null). Offline: trust the
+      // current `miles` state, which recomputeMiles already cleared on a failed re-pick.
       let finalMiles = miles;
       if (navigator.onLine) {
-        const m = await computeRoundTripMiles({ origin: resolveOrigin(profile), dest: resolveDest(finalLocation) });
-        if (m != null) finalMiles = m;
+        finalMiles = await computeRoundTripMiles({ origin: resolveOrigin(profile), dest: resolveDest(finalLocation) });
       }
 
       const woId = await createWorkOrder({
