@@ -40,6 +40,7 @@ export const SYNCED_TABLES = [
   'catalogItems',
   'workTypes',
   'stages',
+  'lists',
 ];
 
 db.version(4)
@@ -65,6 +66,13 @@ db.version(4)
 // legacy open/completed records map onto the pipeline lazily via resolveStage.
 db.version(5).stores({
   stages: 'id, order, createdAt',
+});
+
+// v6: admin-editable picklists (payment methods, phone labels, account terms).
+// One generic table keyed by `kind`; records store the picked value by name (snapshot),
+// so deleting a value never orphans data and no migration is needed.
+db.version(6).stores({
+  lists: 'id, kind, order, createdAt',
 });
 
 export const uid = () =>
@@ -459,4 +467,50 @@ export async function ensureSeedStages() {
     );
   }
   await saveProfile({ stagesSeeded: true });
+}
+
+// ---- Admin-editable picklists (generic lists) -------------------------------
+// kind: 'paymentMethod' | 'phoneLabel' | 'accountTerm'. Records store the chosen
+// value by name, so these lists only drive the pickers — deleting a value leaves
+// existing records (which keep their string) untouched.
+export const DEFAULT_LISTS = {
+  paymentMethod: ['Cash', 'Check', 'Card', 'Zelle', 'Other'],
+  phoneLabel: ['Mobile', 'Office', 'Home', 'Other'],
+  accountTerm: ['COD', 'Net-30', 'Prepay'], // Do-not-service is a separate account flag now
+};
+
+export async function listItems(kind) {
+  return db.lists.where('kind').equals(kind).sortBy('order');
+}
+
+export async function createListItem(kind, name) {
+  const id = uid();
+  const max = (await listItems(kind)).reduce((m, it) => Math.max(m, it.order ?? 0), -1);
+  await db.lists.add({ id, kind, name: (name || '').trim(), order: max + 1, createdAt: now(), updatedAt: now() });
+  return id;
+}
+
+export async function updateListItem(id, data) {
+  await db.lists.update(id, { ...data, updatedAt: now() });
+}
+
+export async function deleteListItem(id) {
+  await db.lists.delete(id);
+  await recordTombstone('lists', id);
+}
+
+// Seed the default picklists exactly once (flag on the profile, mirrors ensureSeedStages).
+export async function ensureSeedLists() {
+  const profile = await db.businessProfile.get(PROFILE_ID);
+  if (profile?.listsSeeded) return;
+  if ((await db.lists.count()) === 0) {
+    const rows = [];
+    for (const [kind, names] of Object.entries(DEFAULT_LISTS)) {
+      names.forEach((name, i) =>
+        rows.push({ id: uid(), kind, name, order: i, createdAt: now(), updatedAt: now() })
+      );
+    }
+    await db.lists.bulkAdd(rows);
+  }
+  await saveProfile({ listsSeeded: true });
 }

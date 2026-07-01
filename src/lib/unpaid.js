@@ -43,7 +43,9 @@ export function accountOutstanding(bills = []) {
 // Returns the message to display, or null when the account is fine.
 export function accountWarning(account = {}) {
   if (!account) return null;
-  if (account.terms === 'Do-not-service') {
+  // `doNotService` is the flag; `terms === 'Do-not-service'` is the legacy value kept
+  // working for accounts saved before the flag existed.
+  if (account.doNotService || account.terms === 'Do-not-service') {
     return 'This account is flagged Do-not-service.';
   }
   if (account.rating != null && account.rating <= 1) {

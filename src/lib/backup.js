@@ -10,6 +10,7 @@ const TABLES = [
   'catalogItems',
   'workTypes',
   'stages',
+  'lists',
 ];
 const SCHEMA_VERSION = 3;
 const LAST_BACKUP_KEY = 'fs-last-backup';

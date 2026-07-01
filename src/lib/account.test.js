@@ -74,8 +74,16 @@ describe('accountOutstanding', () => {
 });
 
 describe('accountWarning', () => {
-  it('warns for a do-not-service account', () => {
+  it('warns for a do-not-service account (doNotService flag)', () => {
+    expect(accountWarning({ doNotService: true })).toMatch(/do.?not.?service/i);
+  });
+
+  it('warns for a legacy do-not-service term (back-compat)', () => {
     expect(accountWarning({ terms: 'Do-not-service' })).toMatch(/do.?not.?service/i);
+  });
+
+  it('does not warn for an ordinary term once do-not-service is a flag', () => {
+    expect(accountWarning({ terms: 'Net-30' })).toBeNull();
   });
 
   it('warns for a rating of 1', () => {

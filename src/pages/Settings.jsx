@@ -16,6 +16,7 @@ import {
 import { useToast } from '../components/Toast.jsx';
 import CatalogManager from '../components/CatalogManager.jsx';
 import WorkTypeManager from '../components/WorkTypeManager.jsx';
+import ListManager from '../components/ListManager.jsx';
 import StageManager from '../components/StageManager.jsx';
 import ImportExport from '../components/ImportExport.jsx';
 import CloudSync from '../components/CloudSync.jsx';
@@ -326,6 +327,15 @@ export default function Settings() {
 
         <div className="section-title">Parts &amp; Labor catalog</div>
         <CatalogManager />
+
+        <div className="section-title">Payment methods</div>
+        <ListManager kind="paymentMethod" label="payment method" />
+
+        <div className="section-title">Phone labels</div>
+        <ListManager kind="phoneLabel" label="phone label" />
+
+        <div className="section-title">Account terms</div>
+        <ListManager kind="accountTerm" label="term" />
 
         <div className="section-title">Import &amp; export lists</div>
         <ImportExport />

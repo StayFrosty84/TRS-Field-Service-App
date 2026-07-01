@@ -1,6 +1,5 @@
 import Icon from './Icon.jsx';
-
-const LABELS = ['Mobile', 'Office', 'Home', 'Other'];
+import ListPicker from './ListPicker.jsx';
 
 // Editable list of labeled phone numbers, each with an optional extension.
 // `phones` is [{ label, number, ext }]; `onChange` gets the next array.
@@ -14,16 +13,13 @@ export default function PhoneListField({ phones = [], onChange }) {
     <>
       {phones.map((p, i) => (
         <div key={i} className="row" style={{ gap: 8, marginTop: 8, alignItems: 'center' }}>
-          <select
+          <ListPicker
+            kind="phoneLabel"
             value={p.label || 'Mobile'}
-            onChange={(e) => update(i, 'label', e.target.value)}
+            onChange={(v) => update(i, 'label', v)}
             aria-label="Phone label"
             style={{ flex: '0 0 96px' }}
-          >
-            {LABELS.map((l) => (
-              <option key={l}>{l}</option>
-            ))}
-          </select>
+          />
           <input
             type="tel"
             placeholder="Phone number"

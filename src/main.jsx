@@ -4,13 +4,14 @@ import { HashRouter } from 'react-router-dom';
 import App from './App.jsx';
 import './styles.css';
 import { initTheme } from './lib/theme.js';
-import { ensureSeedWorkTypes, ensureSeedStages } from './db/db.js';
+import { ensureSeedWorkTypes, ensureSeedStages, ensureSeedLists } from './db/db.js';
 import { ensureSeedDemoData } from './lib/seedDemo.js';
 import { init as initSync } from './lib/sync/engine.js';
 
 initTheme();
 ensureSeedWorkTypes()
   .then(() => ensureSeedStages())
+  .then(() => ensureSeedLists())
   .then(() => ensureSeedDemoData())
   .finally(() => initSync()); // resume Google Drive sync if previously connected
 

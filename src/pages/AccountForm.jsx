@@ -4,9 +4,9 @@ import { db, createAccount, updateAccount } from '../db/db.js';
 import { getPhones } from '../lib/format.js';
 import { useToast } from '../components/Toast.jsx';
 import PhoneListField from '../components/PhoneListField.jsx';
+import ListPicker from '../components/ListPicker.jsx';
 
-const EMPTY = { name: '', phones: [], email: '', address: '', notes: '', rating: 0, terms: '' };
-const TERMS = ['COD', 'Net-30', 'Prepay', 'Do-not-service'];
+const EMPTY = { name: '', phones: [], email: '', address: '', notes: '', rating: 0, terms: '', doNotService: false };
 
 // Normalize an entity's phones into the form shape (label defaults to Mobile).
 const toFormPhones = (e) =>
@@ -20,7 +20,17 @@ export default function AccountForm() {
   const editing = Boolean(id);
 
   useEffect(() => {
-    if (id) db.accounts.get(id).then((a) => a && setForm({ ...EMPTY, ...a, phones: toFormPhones(a) }));
+    if (!id) return;
+    db.accounts.get(id).then((a) => {
+      if (!a) return;
+      const next = { ...EMPTY, ...a, phones: toFormPhones(a) };
+      // Migrate the legacy "Do-not-service" term onto the dedicated flag on edit.
+      if (next.terms === 'Do-not-service') {
+        next.doNotService = true;
+        next.terms = '';
+      }
+      setForm(next);
+    });
   }, [id]);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -74,14 +84,23 @@ export default function AccountForm() {
       </div>
 
       <label>Terms</label>
-      <select value={form.terms} onChange={set('terms')}>
-        <option value="">— None —</option>
-        {TERMS.map((t) => (
-          <option key={t} value={t}>
-            {t}
-          </option>
-        ))}
-      </select>
+      <ListPicker
+        kind="accountTerm"
+        value={form.terms}
+        onChange={(v) => setForm((f) => ({ ...f, terms: v }))}
+        includeBlank
+        blankLabel="— None —"
+      />
+
+      <label className="row" style={{ gap: 10, alignItems: 'center', marginTop: 12 }}>
+        <input
+          type="checkbox"
+          checked={!!form.doNotService}
+          onChange={(e) => setForm((f) => ({ ...f, doNotService: e.target.checked }))}
+          style={{ width: 22, height: 22, minHeight: 0, flex: '0 0 auto' }}
+        />
+        <span style={{ flex: 1 }}>Do not service — warns before starting a new work order for this account</span>
+      </label>
 
       <label>Notes</label>
       <textarea value={form.notes} onChange={set('notes')} />

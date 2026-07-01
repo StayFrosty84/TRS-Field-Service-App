@@ -28,6 +28,7 @@ import AddressAutocomplete from '../components/AddressAutocomplete.jsx';
 import LocationMap from '../components/LocationMap.jsx';
 import NavigateLink from '../components/NavigateLink.jsx';
 import PhoneRow from '../components/PhoneRow.jsx';
+import ListPicker from '../components/ListPicker.jsx';
 import PhotoMarkup from '../components/PhotoMarkup.jsx';
 import Icon from '../components/Icon.jsx';
 
@@ -388,13 +389,7 @@ export default function WorkOrderDetail() {
                         placeholder={balance > 0 ? String(balance) : 'Amount'}
                         style={{ flex: '0 0 110px' }}
                       />
-                      <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} style={{ flex: 1 }}>
-                        <option>Cash</option>
-                        <option>Check</option>
-                        <option>Card</option>
-                        <option>Zelle</option>
-                        <option>Other</option>
-                      </select>
+                      <ListPicker kind="paymentMethod" value={payMethod} onChange={setPayMethod} style={{ flex: 1 }} />
                       <button className="btn btn--sm" onClick={addPayment}>
                         <Icon name="check" /> Add payment
                       </button>

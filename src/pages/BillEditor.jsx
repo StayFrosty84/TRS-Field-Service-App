@@ -18,6 +18,7 @@ import { cleanLineItems, billHasContent } from '../lib/bill.js';
 import SignaturePadField from '../components/SignaturePadField.jsx';
 import CatalogPicker from '../components/CatalogPicker.jsx';
 import SortableList from '../components/SortableList.jsx';
+import ListPicker from '../components/ListPicker.jsx';
 import Icon from '../components/Icon.jsx';
 
 const blankItem = () => ({ id: crypto.randomUUID(), description: '', qty: 1, unitPrice: '' });
@@ -425,14 +426,13 @@ export default function BillEditor() {
           </div>
           {paymentStatus === 'paid' && (
             <>
-              <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-                <option value="">Payment method…</option>
-                <option>Cash</option>
-                <option>Check</option>
-                <option>Card</option>
-                <option>Zelle</option>
-                <option>Other</option>
-              </select>
+              <ListPicker
+                kind="paymentMethod"
+                value={paymentMethod}
+                onChange={setPaymentMethod}
+                includeBlank
+                blankLabel="Payment method…"
+              />
               <label>Reference #</label>
               <input
                 value={paymentReference}
