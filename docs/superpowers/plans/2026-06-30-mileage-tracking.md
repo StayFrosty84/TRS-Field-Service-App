@@ -410,7 +410,7 @@ Add inside the component (near `useShopAddress`):
     const origin = resolveOrigin(profile);
     const dest = resolveDest(location);
     if (!origin || !dest || !navigator.onLine) return;
-    const m = await computeRoundTripMiles(origin, dest);
+    const m = await computeRoundTripMiles({ origin, dest });
     if (m != null) setMiles(m);
   }
 ```
@@ -446,7 +446,7 @@ In `save()`, replace the `createWorkOrder({ ... })` call so mileage is computed 
       const finalLocation = { text: locationText.trim(), ...(gps || {}) };
       let finalMiles = miles;
       if (navigator.onLine) {
-        const m = await computeRoundTripMiles(resolveOrigin(profile), resolveDest(finalLocation));
+        const m = await computeRoundTripMiles({ origin: resolveOrigin(profile), dest: resolveDest(finalLocation) });
         if (m != null) finalMiles = m;
       }
 
@@ -545,7 +545,7 @@ In the `AddressAutocomplete` `onPick` handler, recompute and persist:
           const g = lat != null && lng != null ? { lat, lng } : null;
           setGps(g);
           if (navigator.onLine) {
-            computeRoundTripMiles(resolveOrigin(profile), resolveDest({ text: label, ...(g || {}) }))
+            computeRoundTripMiles({ origin: resolveOrigin(profile), dest: resolveDest({ text: label, ...(g || {}) }) })
               .then((m) => {
                 if (m != null) {
                   setMiles(m);
