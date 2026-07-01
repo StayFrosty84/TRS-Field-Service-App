@@ -19,6 +19,15 @@ Each item: title — one-line mechanic — **(size S/M/L)** — grounding (files
 
 ## ✅ Shipped
 
+- **Catalog-linked work-type templates** — work-type template line items now reference the
+  Parts & Labor catalog by id (pure reference; name/price resolve live from one place).
+  Legacy free-form rows still work. Add products to a work type via the catalog picker or a
+  new inline "New item" (auto-saved to the catalog); assign one product to many work types
+  from a new product edit sheet (which also renames/reprices). Deleting a referenced product
+  is blocked with the work-type list. Selecting a work type on a new WO snapshots resolved
+  prices, so historical bills stay frozen. Also: **clone work type**. No migration —
+  additive; row shape is `{catalogItemId, qty}` or legacy `{description, qty, unitPrice}`.
+  (`templateItems.js`, `db.js`, `WorkTypeManager.jsx`, `CatalogManager.jsx`, `WorkOrderNew.jsx`)
 - **Admin-editable picklists** — payment methods, phone labels, and account terms are
   admin-managed from Settings → Lists & templates via a generic `lists` table (`db.version(6)`)
   + a shared `ListManager` editor and `ListPicker`. Records store values by name (no
@@ -116,16 +125,6 @@ Verified in code. Listed so they aren't re-proposed.
 
 ## Needs brainstorm (bigger bets)
 
-- **Catalog-linked template line items** — template items currently free-form
-  `{description, qty, unitPrice}`; normalize to `{catalogItemId, qty}` + a price snapshot so
-  templates draw from the Parts & Labor catalog. **(L)** — reuse `CatalogPicker.jsx`;
-  "think SF data model."
-- **Work-type template line items (editor tab)** — add a tab to the work-type editor for
-  defining default template line items per work type, so selecting a work type on a new WO
-  pre-fills its line items. **(M)** — extends `WorkTypeManager.jsx` (already edits icon +
-  fields); design alongside **Catalog-linked template line items** so the line-item shape is
-  decided once (free-form vs. `catalogItemId`); WO already records `workTypeId` for the
-  pre-fill hook.
 - **Work type on each WO row** — show the work type used, per row. **(S — dependency now
   met)** — WO already records `workTypeId`; this is just rendering it in `OrderRow`.
 - **Estimate → Bill conversion + win-rate** — a "Convert estimate to bill" action; Reports
