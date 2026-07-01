@@ -166,7 +166,7 @@ export default function WorkOrderDetail() {
 
       <div className="card" style={{ marginTop: 12 }}>
         <div>
-          <Icon name="building" size={15} /> <Link to={`/accounts/${account?.id}`}>{account?.name || 'Unknown'}</Link>
+          <Icon name="building" size={18} /> <Link to={`/accounts/${account?.id}`} style={{ fontSize: 20, fontWeight: 600 }}>{account?.name || 'Unknown'}</Link>
         </div>
         {getPhones(account).map((p, i) => (
           <PhoneRow key={`ap${i}`} phone={p} style={{ marginTop: 8 }} />
@@ -183,7 +183,7 @@ export default function WorkOrderDetail() {
         {contact && (
           <>
             <div style={{ marginTop: 12 }}>
-              <Icon name="user" size={15} /> <Link to={`/contacts/${contact.id}`}>{contact.name}</Link>
+              <Icon name="user" size={17} /> <Link to={`/contacts/${contact.id}`} style={{ fontSize: 18, fontWeight: 600 }}>{contact.name}</Link>
               {contact.role ? <span className="muted"> · {contact.role}</span> : ''}
             </div>
             {getPhones(contact).map((p, i) => (
