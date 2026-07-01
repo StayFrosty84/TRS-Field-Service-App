@@ -30,6 +30,9 @@ const EMPTY = {
   ccFeeRate: '3',
   taxRate: '',
   billTerms: '',
+  mileageRate: '',
+  shopLat: '',
+  shopLng: '',
 };
 
 export default function Settings() {
@@ -92,6 +95,9 @@ export default function Settings() {
           ccFeeRate: p.ccFeeRate != null ? String(p.ccFeeRate) : '3',
           taxRate: p.taxRate != null ? String(p.taxRate) : '',
           billTerms: p.billTerms || '',
+          mileageRate: p.mileageRate != null ? String(p.mileageRate) : '',
+          shopLat: p.shopLat != null ? String(p.shopLat) : '',
+          shopLng: p.shopLng != null ? String(p.shopLng) : '',
         });
         if (p.stuckDays != null) setStuckDaysState(String(p.stuckDays));
         if (p.logoBlob) {
@@ -113,10 +119,14 @@ export default function Settings() {
   }
 
   async function saveProfileForm() {
+    const num = (v) => (String(v).trim() === '' ? undefined : Number(v));
     await saveProfile({
       ...form,
       ccFeeRate: Number(form.ccFeeRate) || 0,
       taxRate: Number(form.taxRate) || 0,
+      mileageRate: Number(form.mileageRate) || 0,
+      shopLat: num(form.shopLat),
+      shopLng: num(form.shopLng),
       logoBlob,
     });
     toast('Profile saved');
@@ -253,6 +263,41 @@ export default function Settings() {
 
         <label>Address</label>
         <textarea value={form.address} onChange={set('address')} />
+
+        <label>Mileage rate ($/mi)</label>
+        <input
+          type="number"
+          inputMode="decimal"
+          min="0"
+          step="0.01"
+          value={form.mileageRate}
+          onChange={set('mileageRate')}
+        />
+
+        <label>Shop coordinates (optional)</label>
+        <div className="row" style={{ gap: 12 }}>
+          <input
+            style={{ flex: 1 }}
+            type="number"
+            inputMode="decimal"
+            step="0.000001"
+            placeholder="Latitude"
+            value={form.shopLat}
+            onChange={set('shopLat')}
+          />
+          <input
+            style={{ flex: 1 }}
+            type="number"
+            inputMode="decimal"
+            step="0.000001"
+            placeholder="Longitude"
+            value={form.shopLng}
+            onChange={set('shopLng')}
+          />
+        </div>
+        <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>
+          Coordinates override the address for mileage accuracy. They never appear on the Bill of Sale.
+        </p>
 
         <div className="row" style={{ gap: 12 }}>
           <div style={{ flex: 1 }}>
