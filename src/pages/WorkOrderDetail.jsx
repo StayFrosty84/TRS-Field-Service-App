@@ -17,7 +17,9 @@ import {
   listStages,
   setWorkOrderStage,
   updatePhoto,
+  getProfile,
 } from '../db/db.js';
+import { computeRoundTripMiles, resolveOrigin, resolveDest } from '../lib/mileage.js';
 import { resolveStage, stageColorClass, daysInCurrentStage } from '../lib/stages.js';
 import { toDateInput, fromDateInput, money, fmtDate, getPhones } from '../lib/format.js';
 import { normalizePayments, amountPaid, billBalance, paymentState } from '../lib/payments.js';
@@ -41,6 +43,7 @@ export default function WorkOrderDetail() {
   const [notes, setNotes] = useState('');
   const [locationText, setLocationText] = useState('');
   const [gps, setGps] = useState(null);
+  const [miles, setMiles] = useState(null);
   const [serviceDate, setServiceDate] = useState('');
   const [isEstimate, setIsEstimate] = useState(false);
   const [unitNumber, setUnitNumber] = useState('');
@@ -63,6 +66,7 @@ export default function WorkOrderDetail() {
 
   const workTypes = useLiveQuery(listWorkTypes) || [];
   const stages = useLiveQuery(listStages) || [];
+  const profile = useLiveQuery(getProfile);
 
   useEffect(() => {
     if (data?.order && !loaded) {
@@ -78,6 +82,7 @@ export default function WorkOrderDetail() {
       setIsEstimate(Boolean(data.order.isEstimate));
       setUnitNumber(data.order.unitNumber || '');
       setReferenceNumber(data.order.referenceNumber || '');
+      setMiles(data.order.roundTripMiles ?? null);
       setLoaded(true);
     }
   }, [data, loaded]);
@@ -251,10 +256,23 @@ export default function WorkOrderDetail() {
         }}
         onPick={({ label, lat, lng }) => {
           setLocationText(label);
-          setGps(lat != null && lng != null ? { lat, lng } : null);
+          const g = lat != null && lng != null ? { lat, lng } : null;
+          setGps(g);
+          if (navigator.onLine) {
+            computeRoundTripMiles({ origin: resolveOrigin(profile), dest: resolveDest({ text: label, ...(g || {}) }) })
+              .then((m) => {
+                if (m != null) {
+                  setMiles(m);
+                  updateWorkOrder(id, { roundTripMiles: m });
+                }
+              });
+          }
         }}
       />
       <LocationMap text={locationText} lat={gps?.lat} lng={gps?.lng} />
+      <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+        Round trip from shop: {miles != null ? `${miles} mi` : '—'}
+      </p>
       <NavigateLink text={locationText} lat={gps?.lat} lng={gps?.lng} style={{ marginTop: 8 }} />
       <label>Service date</label>
       <input type="date" value={serviceDate} onChange={(e) => setServiceDate(e.target.value)} />
