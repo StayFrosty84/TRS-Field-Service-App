@@ -152,12 +152,6 @@ const ICONS = {
       <path d="M12 9v4M12 17h.01" />
     </>
   ),
-  sparkles: (
-    <>
-      <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z" />
-      <path d="M5 3v4M3 5h4M19 17v4M17 19h4" />
-    </>
-  ),
   square: <rect width="18" height="18" x="3" y="3" rx="2" />,
   circle: <circle cx="12" cy="12" r="10" />,
   'arrow-up-right': (
@@ -179,8 +173,6 @@ const ICONS = {
       <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
     </>
   ),
-  'chevron-up': <path d="m18 15-6-6-6 6" />,
-  'chevron-down': <path d="m6 9 6 6 6-6" />,
   'grip-vertical': (
     <>
       <circle cx="9" cy="5" r="1" />
