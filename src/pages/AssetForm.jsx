@@ -52,12 +52,13 @@ export default function AssetForm() {
     };
     if (editing) {
       await updateAsset(id, payload);
+      toast('Asset saved');
       navigate(`/assets/${id}`);
     } else {
       const newId = await createAsset(form.accountId, payload);
+      toast('Asset saved');
       navigate(`/assets/${newId}`, { replace: true });
     }
-    toast('Asset saved');
   }
 
   if (!accounts) return null;
