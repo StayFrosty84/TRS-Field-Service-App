@@ -19,6 +19,7 @@ import {
   updatePhoto,
   getProfile,
 } from '../db/db.js';
+import { assetLabel } from '../lib/assets.js';
 import { computeRoundTripMiles, resolveOrigin, resolveDest } from '../lib/mileage.js';
 import { resolveStage, stageColorClass, daysInCurrentStage } from '../lib/stages.js';
 import { toDateInput, fromDateInput, money, fmtDate, getPhones } from '../lib/format.js';
@@ -62,7 +63,10 @@ export default function WorkOrderDetail() {
     const contact = order.contactId ? await db.contacts.get(order.contactId) : null;
     const photos = await db.photos.where('workOrderId').equals(id).toArray();
     const bill = await getBillForWorkOrder(id);
-    return { order, account, contact, photos, bill };
+    const assets = order.accountId
+      ? await db.assets.where('accountId').equals(order.accountId).sortBy('createdAt')
+      : [];
+    return { order, account, contact, photos, bill, assets };
   }, [id]);
 
   const workTypes = useLiveQuery(listWorkTypes) || [];
@@ -93,6 +97,7 @@ export default function WorkOrderDetail() {
   const contact = data?.contact;
   const photos = data?.photos || [];
   const bill = data?.bill;
+  const assets = data?.assets || [];
 
   const autosaveData = {
     issue,
@@ -292,6 +297,33 @@ export default function WorkOrderDetail() {
       <textarea value={issue} onChange={(e) => setIssue(e.target.value)} />
       <label>Internal notes</label>
       <textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
+      {(assets.length > 0 || order.assetId) && (
+        <>
+          <label>Truck / Equipment</label>
+          <select
+            value={order.assetId || ''}
+            onChange={async (e) => {
+              const a = assets.find((x) => x.id === e.target.value);
+              await updateWorkOrder(id, {
+                assetId: e.target.value || null,
+                ...(a?.unitNumber ? { unitNumber: a.unitNumber } : {}),
+              });
+              if (a?.unitNumber) setUnitNumber(a.unitNumber);
+              toast(a ? `Linked ${assetLabel(a)}` : 'Asset unlinked');
+            }}
+          >
+            <option value="">— None —</option>
+            {assets.map((a) => (
+              <option key={a.id} value={a.id}>
+                {assetLabel(a)}
+              </option>
+            ))}
+            {order.assetId && !assets.some((a) => a.id === order.assetId) && (
+              <option value={order.assetId}>(asset removed)</option>
+            )}
+          </select>
+        </>
+      )}
       <label>Unit #</label>
       <input value={unitNumber} onChange={(e) => setUnitNumber(e.target.value)} />
       <label>Reference #</label>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, createAccount, createContact, createWorkOrder, addPhoto, listWorkTypes, listStages, setWorkOrderStage, getProfile, listCatalog } from '../db/db.js';
+import { assetLabel } from '../lib/assets.js';
 import { toDateInput, fromDateInput } from '../lib/format.js';
 import { computeRoundTripMiles, resolveOrigin, resolveDest } from '../lib/mileage.js';
 import { resolveTemplateItems } from '../lib/templateItems.js';
@@ -22,6 +23,7 @@ export default function WorkOrderNew() {
   const features = useFeatures();
   const accounts = useLiveQuery(() => db.accounts.orderBy('name').toArray());
   const allContacts = useLiveQuery(() => db.contacts.toArray());
+  const allAssets = useLiveQuery(() => db.assets.toArray());
   const workTypes = useLiveQuery(listWorkTypes) || [];
   const catalog = useLiveQuery(listCatalog) || [];
   const stages = useLiveQuery(listStages) || [];
@@ -35,6 +37,7 @@ export default function WorkOrderNew() {
   const [contactId, setContactId] = useState(draft?.contactId || '');
   const [newContactName, setNewContactName] = useState(draft?.newContactName || '');
   const [newContactPhone, setNewContactPhone] = useState(draft?.newContactPhone || '');
+  const [assetId, setAssetId] = useState(draft?.assetId || '');
   const [locationText, setLocationText] = useState(draft?.locationText || '');
   const [gps, setGps] = useState(draft?.gps || null);
   const [miles, setMiles] = useState(draft?.miles ?? null);
@@ -66,6 +69,7 @@ export default function WorkOrderNew() {
     contactId,
     newContactName,
     newContactPhone,
+    assetId,
     locationText,
     gps,
     miles,
@@ -91,6 +95,11 @@ export default function WorkOrderNew() {
   const contactsForAccount = useMemo(
     () => (allContacts || []).filter((c) => c.accountId === accountId),
     [allContacts, accountId]
+  );
+
+  const assetsForAcct = useMemo(
+    () => (allAssets || []).filter((a) => a.accountId === accountId),
+    [allAssets, accountId]
   );
 
   const creatingAccount = accountId === '__new__';
@@ -168,6 +177,7 @@ export default function WorkOrderNew() {
       const woId = await createWorkOrder({
         accountId: acctId,
         contactId: ctctId || null,
+        assetId: (creatingAccount ? null : assetId) || null,
         location: finalLocation,
         roundTripMiles: finalMiles ?? undefined,
         serviceDate: fromDateInput(serviceDate) || Date.now(),
@@ -212,6 +222,7 @@ export default function WorkOrderNew() {
         onChange={(e) => {
           setAccountId(e.target.value);
           setContactId('');
+          setAssetId('');
         }}
       >
         <option value="">— Select account —</option>
@@ -271,6 +282,27 @@ export default function WorkOrderNew() {
             onChange={(e) => setNewContactPhone(e.target.value)}
           />
         </div>
+      )}
+
+      {assetsForAcct.length > 0 && (
+        <>
+          <label>Truck / Equipment</label>
+          <select
+            value={assetId}
+            onChange={(e) => {
+              setAssetId(e.target.value);
+              const a = assetsForAcct.find((x) => x.id === e.target.value);
+              if (a?.unitNumber) setUnitNumber(a.unitNumber);
+            }}
+          >
+            <option value="">— None —</option>
+            {assetsForAcct.map((a) => (
+              <option key={a.id} value={a.id}>
+                {assetLabel(a)}
+              </option>
+            ))}
+          </select>
+        </>
       )}
 
       {features.stages && stages.length > 0 && (
