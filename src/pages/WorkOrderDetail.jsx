@@ -28,7 +28,7 @@ import { shareFile, openBlob } from '../lib/share.js';
 import { fillShareMessage, shareMessageValues } from '../lib/shareMessage.js';
 import { useToast } from '../components/Toast.jsx';
 import { useFeatures } from '../lib/useFeatures.js';
-import AddressAutocomplete from '../components/AddressAutocomplete.jsx';
+import LocationInput from '../components/LocationInput.jsx';
 import LocationMap from '../components/LocationMap.jsx';
 import NavigateLink from '../components/NavigateLink.jsx';
 import PhoneRow from '../components/PhoneRow.jsx';
@@ -253,7 +253,7 @@ export default function WorkOrderDetail() {
 
       <div onBlur={flushSave}>
       <label>Location</label>
-      <AddressAutocomplete
+      <LocationInput
         value={locationText}
         placeholder="Search address, or type a description"
         onChangeText={(t) => {

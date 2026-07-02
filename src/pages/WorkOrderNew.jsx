@@ -11,7 +11,7 @@ import { useFeatures } from '../lib/useFeatures.js';
 import { useAutosave } from '../lib/useAutosave.js';
 import { loadDraft, saveDraft, clearDraft, draftHasContent } from '../lib/draft.js';
 import { useToast } from '../components/Toast.jsx';
-import AddressAutocomplete from '../components/AddressAutocomplete.jsx';
+import LocationInput from '../components/LocationInput.jsx';
 import LocationMap from '../components/LocationMap.jsx';
 import Icon from '../components/Icon.jsx';
 
@@ -324,7 +324,7 @@ export default function WorkOrderNew() {
       )}
 
       <label>Breakdown location</label>
-      <AddressAutocomplete
+      <LocationInput
         value={locationText}
         placeholder="Search address, or type a description"
         onChangeText={(t) => {
