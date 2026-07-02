@@ -4,6 +4,7 @@ const TABLES = [
   'businessProfile',
   'accounts',
   'contacts',
+  'assets',
   'workOrders',
   'photos',
   'billsOfSale',
