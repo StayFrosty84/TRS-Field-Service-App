@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, createAsset, updateAsset } from '../db/db.js';
 import { normalizeVin } from '../lib/assets.js';
 import { useToast } from '../components/Toast.jsx';
+import VinScanButton from '../components/VinScanButton.jsx';
 
 const EMPTY = {
   accountId: '',
@@ -103,7 +104,10 @@ export default function AssetForm() {
       <input value={form.plate} onChange={set('plate')} />
 
       <label>VIN / Serial</label>
-      <input value={form.vin} onChange={set('vin')} autoCapitalize="characters" />
+      <div className="row" style={{ gap: 8 }}>
+        <input style={{ flex: 1 }} value={form.vin} onChange={set('vin')} autoCapitalize="characters" />
+        <VinScanButton onScan={(vin) => setForm((f) => ({ ...f, vin }))} />
+      </div>
 
       <label>Mileage (informational)</label>
       <input type="number" inputMode="numeric" min="0" value={form.mileage} onChange={set('mileage')} />
