@@ -96,10 +96,18 @@ Verified in code. Listed so they aren't re-proposed.
   rows + `accountOutstanding` / `rating` (both already exist).
 - **Payment-status pill on Work rows** — colored paid / partial / unpaid pill per row.
   **(S)** — `Work.jsx` `billByWo` + `payments.js`.
+- **Enlarge Account Name & Contact Name on WO detail** — increase the font size / visual
+  prominence of the account name and contact name on the work-order detail screen so they read
+  as the primary identifiers at a glance. **(S)** — `WorkOrderDetail.jsx` + `styles.css`.
 - **Tab badge counts** — count of unpaid bills on the Work tab and stuck jobs on Home, shown
   as nav badges. **(S)** — `Layout.jsx` nav; reuse `unpaid.js` and `isStuck` from `stages.js`.
 - **Recents on Home** — quick chips linking to recently viewed work orders / accounts.
   **(S)** — `Home.jsx`.
+- **Recently viewed (accounts / contacts / work orders)** — track the last-opened records per
+  entity and show a "Recently viewed" shortlist at the top of each list tab. **(S)** — record
+  id + timestamp when a detail view opens (a small `recents` store or localStorage); render on
+  `Accounts.jsx` / `Contacts.jsx` / `Work.jsx`. Broader than **Recents on Home** (Home chips);
+  the two should share one tracking source.
 - **Duplicate line item ("add another like this")** — one-tap clone of a bill line. **(S)** —
   `BillEditor.jsx` + existing `SortableList.jsx`.
 - **Aging buckets on unpaid (30/60/90)** — color-code overdue balances by age on the Home
@@ -178,3 +186,9 @@ Verified in code. Listed so they aren't re-proposed.
 - Google Maps API key (available) for richer address autocomplete. Note: there is
   in-progress address-autocomplete work (`addrProvider.js`, `googlePlaces.js`,
   `AddressAutocomplete.jsx`) — reconcile with that first.
+- Search mile markers — enter a highway mile marker (e.g. "I-40 MM 123") as a job
+  location for roadside work where no street address exists. Needs scoping: is this an
+  address-autocomplete input mode, a separate WO location field, or both? No mile-marker
+  concept in the app today (only trip mileage in `mileage.js`); reconcile with the
+  address-autocomplete work above (`addrProvider.js`, `googlePlaces.js`,
+  `AddressAutocomplete.jsx`).
