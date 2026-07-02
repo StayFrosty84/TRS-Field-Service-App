@@ -27,11 +27,14 @@ as they do for a street address.
    **Address | Mile marker** segmented toggle (default Address; address mode unchanged).
    Mile-marker mode is a route picker + numeric marker input — no free-text parsing, no typo
    risk, glove-friendly.
-4. **Enriched labels.** Each marker carries its nearest town + county (computed at build time
-   from the free Census gazetteer of NY places), e.g.
-   `I-90 MM 436.0 · Thruway Mainline · near Angola, Erie Co.` The town/county line is what
-   disambiguates the two I-87s (Thruway Mainline vs Adirondack Northway — posted mileposts
-   restart at Albany, so "I-87 MM 30" legitimately matches both; the user picks).
+4. **Enriched labels.** Each marker carries its nearest town (computed at build time from the
+   free Census gazetteer of NY places), e.g. `I-90 MM 436.0 · Thruway Mainline · near Angola`.
+   The town is what disambiguates the two I-87s (Thruway Mainline vs Adirondack Northway —
+   posted mileposts restart at Albany, so "I-87 MM 30" legitimately matches both, but their
+   nearest towns differ; the user picks). County was dropped from v1: the Census places
+   gazetteer carries no county, and the Thruway source carries none either, so there is no
+   clean single-source way to attach it without shipping county polygons — not worth it when
+   nearest town already disambiguates.
 5. **Direction-neutral points.** The source data has one point per posted marker (no N/S–E/W
    carriageway split), and the maps app routes to the correct side. No fabricated direction
    data.
@@ -46,7 +49,7 @@ as they do for a street address.
 | --- | --- | --- |
 | NYS Thruway Authority | `services2.arcgis.com/gubH6kG9JCAsMX2M/…/NY_State_Thruway_Mileposts/FeatureServer/1` | 5,703 tenth-mile posted mileposts; fields `RTE_ABBR` (ML/B/N/NE/CW/GS), `ROAD_NAME`, `POSTED_MILEPOST`, point geometry (request `outSR=4326`) |
 | NYSDOT | `gis.dot.ny.gov/hostingny/rest/services/Milepoint/MapServer/0` (Interstate) | Measured polylines (`hasM`) with `ROUTE_NUMBER`, `DIRECTION`, `COUNTY_ORDER` — walked to emit whole-mile points |
-| US Census gazetteer | `2020_gaz_place_36.txt` (NY places, ~1,300 rows) | Nearest town/village/city + county per marker (build-time haversine; not shipped) |
+| US Census gazetteer | `2024_Gaz_place_national.zip` → `2024_Gaz_place_national.txt`, filtered `USPS == 'NY'` (~1,293 places; cols `NAME`, `INTPTLAT`, `INTPTLONG`) | Nearest town/village/city per marker (build-time haversine; not shipped) |
 
 Notes:
 
@@ -68,7 +71,7 @@ Node script, no app dependencies. Steps:
 2. Fetch NYSDOT Interstate polylines with M-values, group by `ROUTE_NUMBER` (primary
    `DIRECTION` only), order segments by `COUNTY_ORDER`, accumulate great-circle length along
    vertices, emit a point at each whole mile. Mark `approx`.
-3. Apply the dedup rule; attach nearest gazetteer place + county to every marker.
+3. Apply the dedup rule; attach nearest gazetteer place (town) to every marker.
 4. **Self-check before writing:** every expected route present, per-route counts within sane
    bounds, all points inside the NY bounding box, max gap between consecutive markers ≤ 1.5 mi
    (warn otherwise). Fail loudly rather than write a bad file.
@@ -77,9 +80,9 @@ Node script, no app dependencies. Steps:
 ```json
 { "v": 1, "generated": "2026-07-01", "markers": [
   { "r": ["I-87", "I-90"], "road": "Thruway Mainline", "mm": 436.0,
-    "lat": 42.63, "lng": -79.06, "town": "Angola", "county": "Erie" },
+    "lat": 42.63, "lng": -79.06, "town": "Angola" },
   { "r": ["I-81"], "road": "I-81", "mm": 120, "approx": true,
-    "lat": 43.45, "lng": -76.11, "town": "Central Square", "county": "Oswego" }
+    "lat": 43.45, "lng": -76.11, "town": "Central Square" }
 ] }
 ```
 
@@ -95,8 +98,9 @@ Pure and node-testable, following the `mileage.js` pattern.
   on whole markers ("43" → 43, 430–439…), then nearest whole marker when a tenth is asked of
   a derived (whole-mile-only) route. Returns ≤ 5 rows sorted by `mm`, each with a composed
   `label` and `lat`/`lng`. Empty input or no match → `[]`.
-- `markerLabel(m)` — `"I-90 MM 436.0 · Thruway Mainline · near Angola, Erie Co."`
-  (road segment omitted when it just repeats the route, as on I-81).
+- `markerLabel(m)` — `"I-90 MM 436.0 · Thruway Mainline · near Angola"`
+  (road segment omitted when it just repeats the route, as on I-81; town clause omitted when
+  no nearby place was found).
 
 ## UI — `LocationInput.jsx` (new) + `MileMarkerPicker.jsx` (new)
 
