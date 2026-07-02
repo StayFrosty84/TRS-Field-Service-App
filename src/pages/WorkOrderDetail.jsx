@@ -19,14 +19,16 @@ import {
   updatePhoto,
   getProfile,
 } from '../db/db.js';
+import { assetLabel } from '../lib/assets.js';
 import { computeRoundTripMiles, resolveOrigin, resolveDest } from '../lib/mileage.js';
 import { resolveStage, stageColorClass, daysInCurrentStage } from '../lib/stages.js';
 import { toDateInput, fromDateInput, money, fmtDate, getPhones } from '../lib/format.js';
 import { normalizePayments, amountPaid, billBalance, paymentState } from '../lib/payments.js';
 import { shareFile, openBlob } from '../lib/share.js';
+import { fillShareMessage, shareMessageValues } from '../lib/shareMessage.js';
 import { useToast } from '../components/Toast.jsx';
 import { useFeatures } from '../lib/useFeatures.js';
-import AddressAutocomplete from '../components/AddressAutocomplete.jsx';
+import LocationInput from '../components/LocationInput.jsx';
 import LocationMap from '../components/LocationMap.jsx';
 import NavigateLink from '../components/NavigateLink.jsx';
 import PhoneRow from '../components/PhoneRow.jsx';
@@ -61,7 +63,10 @@ export default function WorkOrderDetail() {
     const contact = order.contactId ? await db.contacts.get(order.contactId) : null;
     const photos = await db.photos.where('workOrderId').equals(id).toArray();
     const bill = await getBillForWorkOrder(id);
-    return { order, account, contact, photos, bill };
+    const assets = order.accountId
+      ? await db.assets.where('accountId').equals(order.accountId).sortBy('createdAt')
+      : [];
+    return { order, account, contact, photos, bill, assets };
   }, [id]);
 
   const workTypes = useLiveQuery(listWorkTypes) || [];
@@ -92,6 +97,7 @@ export default function WorkOrderDetail() {
   const contact = data?.contact;
   const photos = data?.photos || [];
   const bill = data?.bill;
+  const assets = data?.assets || [];
 
   const autosaveData = {
     issue,
@@ -171,7 +177,7 @@ export default function WorkOrderDetail() {
 
       <div className="card" style={{ marginTop: 12 }}>
         <div>
-          <Icon name="building" size={18} /> <Link to={`/accounts/${account?.id}`} style={{ fontSize: 20, fontWeight: 600 }}>{account?.name || 'Unknown'}</Link>
+          <Icon name="building" size={20} /> <Link to={`/accounts/${account?.id}`} style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.2 }}>{account?.name || 'Unknown'}</Link>
         </div>
         {getPhones(account).map((p, i) => (
           <PhoneRow key={`ap${i}`} phone={p} style={{ marginTop: 8 }} />
@@ -188,7 +194,7 @@ export default function WorkOrderDetail() {
         {contact && (
           <>
             <div style={{ marginTop: 12 }}>
-              <Icon name="user" size={17} /> <Link to={`/contacts/${contact.id}`} style={{ fontSize: 18, fontWeight: 600 }}>{contact.name}</Link>
+              <Icon name="user" size={18} /> <Link to={`/contacts/${contact.id}`} style={{ fontSize: 20, fontWeight: 600 }}>{contact.name}</Link>
               {contact.role ? <span className="muted"> · {contact.role}</span> : ''}
             </div>
             {getPhones(contact).map((p, i) => (
@@ -247,7 +253,7 @@ export default function WorkOrderDetail() {
 
       <div onBlur={flushSave}>
       <label>Location</label>
-      <AddressAutocomplete
+      <LocationInput
         value={locationText}
         placeholder="Search address, or type a description"
         onChangeText={(t) => {
@@ -291,6 +297,33 @@ export default function WorkOrderDetail() {
       <textarea value={issue} onChange={(e) => setIssue(e.target.value)} />
       <label>Internal notes</label>
       <textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
+      {(assets.length > 0 || order.assetId) && (
+        <>
+          <label>Truck / Equipment</label>
+          <select
+            value={order.assetId || ''}
+            onChange={async (e) => {
+              const a = assets.find((x) => x.id === e.target.value);
+              await updateWorkOrder(id, {
+                assetId: e.target.value || null,
+                ...(a?.unitNumber ? { unitNumber: a.unitNumber } : {}),
+              });
+              if (a?.unitNumber) setUnitNumber(a.unitNumber);
+              toast(a ? `Linked ${assetLabel(a)}` : 'Asset unlinked');
+            }}
+          >
+            <option value="">— None —</option>
+            {assets.map((a) => (
+              <option key={a.id} value={a.id}>
+                {assetLabel(a)}
+              </option>
+            ))}
+            {order.assetId && !assets.some((a) => a.id === order.assetId) && (
+              <option value={order.assetId}>(asset removed)</option>
+            )}
+          </select>
+        </>
+      )}
       <label>Unit #</label>
       <input value={unitNumber} onChange={(e) => setUnitNumber(e.target.value)} />
       <label>Reference #</label>
@@ -441,7 +474,12 @@ export default function WorkOrderDetail() {
               </button>
               <button
                 className="btn"
-                onClick={() => shareFile(bill.pdfBlob, 'bill-of-sale.pdf', { title: 'Bill of Sale' })}
+                onClick={() =>
+                  shareFile(bill.pdfBlob, 'bill-of-sale.pdf', {
+                    title: 'Bill of Sale',
+                    text: fillShareMessage(profile?.shareMessage, shareMessageValues({ profile, account, order, bill })),
+                  })
+                }
               >
                 <Icon name="share" /> Share PDF
               </button>

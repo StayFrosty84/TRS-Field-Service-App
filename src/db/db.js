@@ -34,6 +34,7 @@ export const SYNCED_TABLES = [
   'businessProfile',
   'accounts',
   'contacts',
+  'assets',
   'workOrders',
   'photos',
   'billsOfSale',
@@ -73,6 +74,14 @@ db.version(5).stores({
 // so deleting a value never orphans data and no migration is needed.
 db.version(6).stores({
   lists: 'id, kind, order, createdAt',
+});
+
+// v7: per-account assets (trucks/equipment). workOrders is re-declared with an
+// added assetId index so per-asset service history can be queried. Additive —
+// existing rows are untouched (no upgrade function needed).
+db.version(7).stores({
+  assets: 'id, accountId, createdAt',
+  workOrders: 'id, accountId, contactId, assetId, status, createdAt',
 });
 
 export const uid = () =>
@@ -123,14 +132,17 @@ export async function updateAccount(id, data) {
 }
 
 export async function deleteAccount(id) {
-  // Cascade: remove contacts, and their work orders + children.
+  // Cascade: remove contacts, assets, and work orders + children.
   const contacts = await db.contacts.where('accountId').equals(id).toArray();
+  const assets = await db.assets.where('accountId').equals(id).toArray();
   const orders = await db.workOrders.where('accountId').equals(id).toArray();
   await Promise.all(orders.map((o) => deleteWorkOrder(o.id)));
   await db.contacts.bulkDelete(contacts.map((c) => c.id));
+  await db.assets.bulkDelete(assets.map((a) => a.id));
   await db.accounts.delete(id);
   await Promise.all([
     ...contacts.map((c) => recordTombstone('contacts', c.id)),
+    ...assets.map((a) => recordTombstone('assets', a.id)),
     recordTombstone('accounts', id),
   ]);
 }
@@ -149,6 +161,32 @@ export async function updateContact(id, data) {
 export async function deleteContact(id) {
   await db.contacts.delete(id);
   await recordTombstone('contacts', id);
+}
+
+// ---- Assets (trucks / equipment) ---------------------------------------------
+// Account-scoped child records, like contacts. WOs link by assetId and snapshot
+// the asset's unitNumber, so deleting an asset never corrupts a past WO or PDF.
+export async function assetsForAccount(accountId) {
+  return db.assets.where('accountId').equals(accountId).sortBy('createdAt');
+}
+
+export async function createAsset(accountId, data) {
+  const id = uid();
+  await db.assets.add({ id, accountId, createdAt: now(), updatedAt: now(), ...data });
+  return id;
+}
+
+export async function updateAsset(id, data) {
+  await db.assets.update(id, { ...data, updatedAt: now() });
+}
+
+export async function deleteAsset(id) {
+  await db.assets.delete(id);
+  await recordTombstone('assets', id);
+}
+
+export async function assetHistory(assetId) {
+  return db.workOrders.where('assetId').equals(assetId).reverse().sortBy('createdAt');
 }
 
 // ---- Work orders ------------------------------------------------------------

@@ -6,6 +6,7 @@ import { exportBackup, importBackup, backupFilename } from '../lib/backup.js';
 import { shareFile, openBlob } from '../lib/share.js';
 import { computeTotals } from '../lib/format.js';
 import { sampleBillData } from '../lib/sampleBill.js';
+import { DEFAULT_SHARE_TEMPLATE } from '../lib/shareMessage.js';
 import { getTheme, setTheme, getContrast, setContrast, getScale, setScale } from '../lib/theme.js';
 import {
   getGoogleEnabled,
@@ -19,6 +20,7 @@ import WorkTypeManager from '../components/WorkTypeManager.jsx';
 import ListManager from '../components/ListManager.jsx';
 import StageManager from '../components/StageManager.jsx';
 import ImportExport from '../components/ImportExport.jsx';
+import CloudSync from '../components/CloudSync.jsx';
 import Icon from '../components/Icon.jsx';
 
 const EMPTY = {
@@ -30,6 +32,7 @@ const EMPTY = {
   ccFeeRate: '3',
   taxRate: '',
   billTerms: '',
+  shareMessage: '',
   mileageRate: '',
   shopLat: '',
   shopLng: '',
@@ -95,6 +98,7 @@ export default function Settings() {
           ccFeeRate: p.ccFeeRate != null ? String(p.ccFeeRate) : '3',
           taxRate: p.taxRate != null ? String(p.taxRate) : '',
           billTerms: p.billTerms || '',
+          shareMessage: p.shareMessage || '',
           mileageRate: p.mileageRate != null ? String(p.mileageRate) : '',
           shopLat: p.shopLat != null ? String(p.shopLat) : '',
           shopLng: p.shopLng != null ? String(p.shopLng) : '',
@@ -337,6 +341,17 @@ export default function Settings() {
           placeholder="e.g. Payment due upon receipt. Thank you for your business!"
         />
 
+        <label>Share message (pre-fills the email/text when sharing a bill)</label>
+        <textarea
+          value={form.shareMessage}
+          onChange={set('shareMessage')}
+          placeholder={DEFAULT_SHARE_TEMPLATE}
+        />
+        <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>
+          Placeholders fill in per bill: {'{accountName}, {docType}, {docNumber}, {total}, {businessName}'}.
+          Leave blank to use the standard message.
+        </p>
+
         <label>Logo (optional)</label>
         <div className="row" style={{ gap: 12 }}>
           {logoUrl && (
@@ -437,6 +452,9 @@ export default function Settings() {
             </>
           )}
         </div>
+
+        <div className="section-title">Cloud sync (Google Drive)</div>
+        <CloudSync />
       </Section>
 
       <Section id="advanced" title="Advanced">

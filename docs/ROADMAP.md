@@ -19,6 +19,40 @@ Each item: title — one-line mechanic — **(size S/M/L)** — grounding (files
 
 ## ✅ Shipped
 
+- **Mile-marker search (NY interstates) (2026-07-01)** — set a WO location by interstate +
+  mile marker, fully offline. An **Address | Mile marker** toggle on the WO location field
+  (both New and Detail) swaps the address autocomplete for a route picker + marker-number
+  input; matches show an enriched label (e.g. `I-90 MM 436.0 · Thruway Mainline · near
+  Hamburg`) and, on pick, emit the same `{label, lat, lng}` as an address so Navigate, the map
+  embed, and round-trip mileage work unchanged. Data is a build-time-bundled ~6,900-marker
+  JSON (NY Thruway posted mileposts at tenth precision + NYSDOT-derived whole-mile interstate
+  points, town-enriched from the Census gazetteer), loaded via dynamic import so it's precached
+  for offline. Regenerate with `npm run build:mile-markers`. (`scripts/buildMileMarkers.mjs`,
+  `src/data/mileMarkers.json`, `mileMarkers.js`, `MileMarkerPicker.jsx`, `LocationInput.jsx`,
+  `WorkOrderNew.jsx`, `WorkOrderDetail.jsx`) 📄 Spec:
+  [specs/2026-07-01-mile-marker-search-design.md](superpowers/specs/2026-07-01-mile-marker-search-design.md)
+  · Plan: [plans/2026-07-01-mile-marker-search.md](superpowers/plans/2026-07-01-mile-marker-search.md)
+- **Asset / truck tracking (2026-07-01)** — per-account trucks/equipment. New `assets` table
+  (`db.version(7)`, additive) with make/model/year/unit #/plate/VIN/mileage/notes; a "Trucks /
+  Equipment" section on Account detail (mirrors contacts); asset form/detail pages with derived
+  **Past jobs** (`assetHistory`). Work orders gain an account-filtered **asset picker** on New
+  and Detail that snapshots the asset's unit # onto the WO — so deleting an asset never corrupts
+  a past WO or its PDF (dangling link shows "(asset removed)", the unit # snapshot survives).
+  Registered for sync + backup. VIN **barcode scan** (`BarcodeDetector`, Code 39) where the
+  browser supports it (Android Chrome); manual entry everywhere else — verify on-device, revert
+  that commit alone if unreliable. Unblocks recurring maintenance jobs. (`assets.js`,
+  `VinScanButton.jsx`, `AssetForm.jsx`, `AssetDetail.jsx`, `db.js`, `WorkOrderNew.jsx`,
+  `WorkOrderDetail.jsx`, `AccountDetail.jsx`) 📄 Spec:
+  [specs/2026-06-30-assets-maintenance-plans-design.md](superpowers/specs/2026-06-30-assets-maintenance-plans-design.md)
+  · Plan: [plans/2026-07-01-asset-tracking.md](superpowers/plans/2026-07-01-asset-tracking.md)
+- **Quick-wins wave (2026-07-01)** — (1) account name (24px/700) and contact name (20px/600)
+  now anchor the WO detail screen; (2) one-tap **Duplicate** on each bill line inserts an
+  independent copy below it; (3) bill/estimate shares pre-fill the email/text body from an
+  editable Settings template (Business profile → Share message) with `{accountName}`,
+  `{docType}`, `{docNumber}`, `{total}`, `{businessName}` placeholders — default ships,
+  blank restores it, message stays editable in the mail app. (`shareMessage.js` + tests,
+  `Settings.jsx`, `BillEditor.jsx`, `WorkOrderDetail.jsx`) 📄 Spec:
+  [specs/2026-07-01-quick-wins-design.md](superpowers/specs/2026-07-01-quick-wins-design.md)
 - **Catalog-linked work-type templates** — work-type template line items now reference the
   Parts & Labor catalog by id (pure reference; name/price resolve live from one place).
   Legacy free-form rows still work. Add products to a work type via the catalog picker or a
@@ -100,8 +134,11 @@ Verified in code. Listed so they aren't re-proposed.
   as nav badges. **(S)** — `Layout.jsx` nav; reuse `unpaid.js` and `isStuck` from `stages.js`.
 - **Recents on Home** — quick chips linking to recently viewed work orders / accounts.
   **(S)** — `Home.jsx`.
-- **Duplicate line item ("add another like this")** — one-tap clone of a bill line. **(S)** —
-  `BillEditor.jsx` + existing `SortableList.jsx`.
+- **Recently viewed (accounts / contacts / work orders)** — track the last-opened records per
+  entity and show a "Recently viewed" shortlist at the top of each list tab. **(S)** — record
+  id + timestamp when a detail view opens (a small `recents` store or localStorage); render on
+  `Accounts.jsx` / `Contacts.jsx` / `Work.jsx`. Broader than **Recents on Home** (Home chips);
+  the two should share one tracking source.
 - **Aging buckets on unpaid (30/60/90)** — color-code overdue balances by age on the Home
   unpaid shortlist and Account detail. **(S–M)** — `unpaid.js`, `Home.jsx`.
 - **Overdue-to-start flag (+ expected-start date)** — add an `expectedStartDate` field to the
@@ -110,8 +147,6 @@ Verified in code. Listed so they aren't re-proposed.
   the `isStuck` badge pattern from `stages.js`.
 - **Revenue by work type** — Reports breakdown of billed/paid by `workTypeId`. **(S)** —
   `Reports.jsx`; WO already records `workTypeId`.
-- **Custom share/email message template** — editable default text used when sending a bill via
-  the share sheet. **(S)** — `share.js` `text` param + a Settings value.
 - **Configurable PDF fields (visibility, global)** — admin on/off toggles in Settings for each
   optional Bill of Sale field (logo, seller phone/email/address, dates, payments summary,
   contact name/phone/email, Unit #, Reference #, issue, signature, terms/notes, photos); core
@@ -149,17 +184,11 @@ Verified in code. Listed so they aren't re-proposed.
   **(L)** — depends on the visibility item; `pdf.js` draws in a fixed sequence today, so this
   needs a data-driven render loop over a field registry (`{ key, label, order, visible }`) —
   a meaningful refactor of the render path.
-- **Asset / truck tracking (per account) — build FIRST** — new `assets` table keyed to an
-  account (make / model / VIN / unit # / plate / mileage / notes + derived service history);
-  the WO gains an `assetId` and snapshots the asset's unit # onto its existing `unitNumber`.
-  Model after Salesforce Field Service assets. **(M–L)** — new `db.js` table + an account-scoped
-  picker (mirrors the contacts pattern); absorbs the parking-lot Truck/Vehicle (Make/Model)
-  note. Prerequisite for recurring maintenance jobs. 📄 Spec:
-  [specs/2026-06-30-assets-maintenance-plans-design.md](superpowers/specs/2026-06-30-assets-maintenance-plans-design.md).
-- **Recurring / maintenance jobs (maintenance plans) — build AFTER asset tracking** — time-only
-  cadence per asset; due plans surface on Home ("Maintenance due") for one-tap WO creation
-  (suggest-and-confirm, no silent writes); completing the job advances the plan. **(L)** —
-  depends on **Asset / truck tracking**. 📄 Spec:
+- **Recurring / maintenance jobs (maintenance plans)** — time-only cadence per asset; due plans
+  surface on Home ("Maintenance due") for one-tap WO creation (suggest-and-confirm, no silent
+  writes); completing the job advances the plan. **(L)** — **dependency now met**: asset tracking
+  shipped 2026-07-01, so this is next up. It's slices 3–4 of the same spec; go straight to
+  planning. 📄 Spec:
   [specs/2026-06-30-assets-maintenance-plans-design.md](superpowers/specs/2026-06-30-assets-maintenance-plans-design.md).
 - **Tighter backup reminder** — configurable interval (today fixed at 14 days in
   `BackupReminder.jsx`); the original ask was every 2/6 hours. **(S)**
@@ -168,8 +197,6 @@ Verified in code. Listed so they aren't re-proposed.
 
 ## Parking lot (raw — triage before building)
 
-- Truck/Vehicle info section on the WO (Make / Model). ⬆️ **Superseded by Asset / truck
-  tracking (per account)** in Needs brainstorm — Make/Model become asset fields there.
 - Customer reference number field — ⚠️ likely done: `referenceNumber` already exists on the
   WO (separate from the internal bill #). Verify before building.
 - Auto-save with undo **or** an unsaved-changes warning when editing a WO (admin toggle to
@@ -178,3 +205,5 @@ Verified in code. Listed so they aren't re-proposed.
 - Google Maps API key (available) for richer address autocomplete. Note: there is
   in-progress address-autocomplete work (`addrProvider.js`, `googlePlaces.js`,
   `AddressAutocomplete.jsx`) — reconcile with that first.
+- Search mile markers. ✅ **Shipped 2026-07-01** as Mile-marker search (NY interstates) — see
+  the Shipped section.

@@ -6,12 +6,14 @@ import './styles.css';
 import { initTheme } from './lib/theme.js';
 import { ensureSeedWorkTypes, ensureSeedStages, ensureSeedLists } from './db/db.js';
 import { ensureSeedDemoData } from './lib/seedDemo.js';
+import { init as initSync } from './lib/sync/engine.js';
 
 initTheme();
 ensureSeedWorkTypes()
   .then(() => ensureSeedStages())
   .then(() => ensureSeedLists())
-  .then(() => ensureSeedDemoData());
+  .then(() => ensureSeedDemoData())
+  .finally(() => initSync()); // resume Google Drive sync if previously connected
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>

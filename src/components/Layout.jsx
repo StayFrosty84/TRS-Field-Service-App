@@ -6,6 +6,7 @@ const ALL_TABS = [
   { to: '/', label: 'Home', ico: 'home', end: true },
   { to: '/work', label: 'Work', ico: 'wrench' },
   { to: '/accounts', label: 'Accounts', ico: 'building' },
+  { to: '/assets', label: 'Trucks', ico: 'truck' },
   { to: '/contacts', label: 'Contacts', ico: 'user' },
   { to: '/settings', label: 'Settings', ico: 'settings' },
 ];

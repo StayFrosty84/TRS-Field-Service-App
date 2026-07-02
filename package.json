@@ -1,7 +1,7 @@
 {
   "name": "field-service-app",
   "private": true,
-  "version": "3.3.0",
+  "version": "3.4.0",
   "type": "module",
   "description": "Offline-first PWA for field-service work orders, bills of sale, and a lightweight CRM",
   "scripts": {
@@ -9,6 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "icons": "node scripts/generate-icons.js",
+    "build:mile-markers": "node scripts/buildMileMarkers.mjs",
     "test": "vitest run"
   },
   "dependencies": {
