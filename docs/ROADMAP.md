@@ -19,6 +19,19 @@ Each item: title — one-line mechanic — **(size S/M/L)** — grounding (files
 
 ## ✅ Shipped
 
+- **Asset / truck tracking (2026-07-01)** — per-account trucks/equipment. New `assets` table
+  (`db.version(7)`, additive) with make/model/year/unit #/plate/VIN/mileage/notes; a "Trucks /
+  Equipment" section on Account detail (mirrors contacts); asset form/detail pages with derived
+  **Past jobs** (`assetHistory`). Work orders gain an account-filtered **asset picker** on New
+  and Detail that snapshots the asset's unit # onto the WO — so deleting an asset never corrupts
+  a past WO or its PDF (dangling link shows "(asset removed)", the unit # snapshot survives).
+  Registered for sync + backup. VIN **barcode scan** (`BarcodeDetector`, Code 39) where the
+  browser supports it (Android Chrome); manual entry everywhere else — verify on-device, revert
+  that commit alone if unreliable. Unblocks recurring maintenance jobs. (`assets.js`,
+  `VinScanButton.jsx`, `AssetForm.jsx`, `AssetDetail.jsx`, `db.js`, `WorkOrderNew.jsx`,
+  `WorkOrderDetail.jsx`, `AccountDetail.jsx`) 📄 Spec:
+  [specs/2026-06-30-assets-maintenance-plans-design.md](superpowers/specs/2026-06-30-assets-maintenance-plans-design.md)
+  · Plan: [plans/2026-07-01-asset-tracking.md](superpowers/plans/2026-07-01-asset-tracking.md)
 - **Quick-wins wave (2026-07-01)** — (1) account name (24px/700) and contact name (20px/600)
   now anchor the WO detail screen; (2) one-tap **Duplicate** on each bill line inserts an
   independent copy below it; (3) bill/estimate shares pre-fill the email/text body from an
@@ -166,17 +179,11 @@ Verified in code. Listed so they aren't re-proposed.
   **(L)** — depends on the visibility item; `pdf.js` draws in a fixed sequence today, so this
   needs a data-driven render loop over a field registry (`{ key, label, order, visible }`) —
   a meaningful refactor of the render path.
-- **Asset / truck tracking (per account) — build FIRST** — new `assets` table keyed to an
-  account (make / model / VIN / unit # / plate / mileage / notes + derived service history);
-  the WO gains an `assetId` and snapshots the asset's unit # onto its existing `unitNumber`.
-  Model after Salesforce Field Service assets. **(M–L)** — new `db.js` table + an account-scoped
-  picker (mirrors the contacts pattern); absorbs the parking-lot Truck/Vehicle (Make/Model)
-  note. Prerequisite for recurring maintenance jobs. 📄 Spec:
-  [specs/2026-06-30-assets-maintenance-plans-design.md](superpowers/specs/2026-06-30-assets-maintenance-plans-design.md).
-- **Recurring / maintenance jobs (maintenance plans) — build AFTER asset tracking** — time-only
-  cadence per asset; due plans surface on Home ("Maintenance due") for one-tap WO creation
-  (suggest-and-confirm, no silent writes); completing the job advances the plan. **(L)** —
-  depends on **Asset / truck tracking**. 📄 Spec:
+- **Recurring / maintenance jobs (maintenance plans)** — time-only cadence per asset; due plans
+  surface on Home ("Maintenance due") for one-tap WO creation (suggest-and-confirm, no silent
+  writes); completing the job advances the plan. **(L)** — **dependency now met**: asset tracking
+  shipped 2026-07-01, so this is next up. It's slices 3–4 of the same spec; go straight to
+  planning. 📄 Spec:
   [specs/2026-06-30-assets-maintenance-plans-design.md](superpowers/specs/2026-06-30-assets-maintenance-plans-design.md).
 - **Tighter backup reminder** — configurable interval (today fixed at 14 days in
   `BackupReminder.jsx`); the original ask was every 2/6 hours. **(S)**
@@ -185,8 +192,6 @@ Verified in code. Listed so they aren't re-proposed.
 
 ## Parking lot (raw — triage before building)
 
-- Truck/Vehicle info section on the WO (Make / Model). ⬆️ **Superseded by Asset / truck
-  tracking (per account)** in Needs brainstorm — Make/Model become asset fields there.
 - Customer reference number field — ⚠️ likely done: `referenceNumber` already exists on the
   WO (separate from the internal bill #). Verify before building.
 - Auto-save with undo **or** an unsaved-changes warning when editing a WO (admin toggle to
