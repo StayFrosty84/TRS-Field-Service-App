@@ -121,6 +121,14 @@ Verified in code. Listed so they aren't re-proposed.
   the `isStuck` badge pattern from `stages.js`.
 - **Revenue by work type** — Reports breakdown of billed/paid by `workTypeId`. **(S)** —
   `Reports.jsx`; WO already records `workTypeId`.
+- **Mile-marker search (NY interstates)** — set a WO location by interstate + mile marker,
+  fully offline: an Address | Mile marker toggle on the WO location field, a route picker +
+  marker number input, and a build-time-bundled dataset (Thruway posted mileposts + derived
+  NYSDOT interstate points, town/county-enriched). Picking emits `{label, lat, lng}` so
+  Navigate / map / mileage need zero changes. **(M)** — new `scripts/buildMileMarkers.mjs`,
+  `src/data/mileMarkers.json`, `mileMarkers.js`, `LocationInput.jsx`, `MileMarkerPicker.jsx`;
+  wraps `AddressAutocomplete.jsx` on `WorkOrderNew.jsx` / `WorkOrderDetail.jsx`. 📄 Spec:
+  [specs/2026-07-01-mile-marker-search-design.md](superpowers/specs/2026-07-01-mile-marker-search-design.md).
 - **Configurable PDF fields (visibility, global)** — admin on/off toggles in Settings for each
   optional Bill of Sale field (logo, seller phone/email/address, dates, payments summary,
   contact name/phone/email, Unit #, Reference #, issue, signature, terms/notes, photos); core
@@ -187,9 +195,5 @@ Verified in code. Listed so they aren't re-proposed.
 - Google Maps API key (available) for richer address autocomplete. Note: there is
   in-progress address-autocomplete work (`addrProvider.js`, `googlePlaces.js`,
   `AddressAutocomplete.jsx`) — reconcile with that first.
-- Search mile markers — enter a highway mile marker (e.g. "I-40 MM 123") as a job
-  location for roadside work where no street address exists. Needs scoping: is this an
-  address-autocomplete input mode, a separate WO location field, or both? No mile-marker
-  concept in the app today (only trip mileage in `mileage.js`); reconcile with the
-  address-autocomplete work above (`addrProvider.js`, `googlePlaces.js`,
-  `AddressAutocomplete.jsx`).
+- Search mile markers. ⬆️ **Promoted to Mile-marker search (NY interstates)** in Ready —
+  spec'd 2026-07-01.
