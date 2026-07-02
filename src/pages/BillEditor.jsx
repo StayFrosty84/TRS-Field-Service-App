@@ -11,6 +11,7 @@ import {
 import { money, computeTotals, toDateInput, fromDateInput, fmtDate } from '../lib/format.js';
 import { blobToDataURL, generateBillPdf } from '../lib/pdf.js';
 import { shareFile, openBlob, copyText } from '../lib/share.js';
+import { fillShareMessage, shareMessageValues } from '../lib/shareMessage.js';
 import { useToast } from '../components/Toast.jsx';
 import { useFeatures } from '../lib/useFeatures.js';
 import { useAutosave } from '../lib/useAutosave.js';
@@ -152,6 +153,12 @@ export default function BillEditor() {
     setItems((arr) => arr.map((it) => (it.id === itemId ? { ...it, [key]: val } : it)));
   const addItem = () => setItems((arr) => [...arr, blankItem()]);
   const removeItem = (itemId) => setItems((arr) => (arr.length > 1 ? arr.filter((it) => it.id !== itemId) : arr));
+  const duplicateItem = (itemId) =>
+    setItems((arr) => {
+      const i = arr.findIndex((it) => it.id === itemId);
+      if (i === -1) return arr;
+      return [...arr.slice(0, i + 1), { ...arr[i], id: crypto.randomUUID() }, ...arr.slice(i + 1)];
+    });
 
   function addFromCatalog(item) {
     const line = { id: crypto.randomUUID(), description: item.description, qty: 1, unitPrice: item.unitPrice };
@@ -210,7 +217,11 @@ export default function BillEditor() {
       });
       await savePdfToBill(savedId, pdfBlob);
 
-      setResult({ pdfBlob, recipients });
+      const shareText = fillShareMessage(
+        profile?.shareMessage,
+        shareMessageValues({ profile, account, order, bill: saved })
+      );
+      setResult({ pdfBlob, recipients, shareText });
       setStep('done');
       toast('Bill saved to work order');
     } catch (err) {
@@ -263,7 +274,7 @@ export default function BillEditor() {
           <button className="btn btn--ghost" onClick={() => openBlob(result.pdfBlob, pdfName)}>
             <Icon name="eye" /> View PDF
           </button>
-          <button className="btn" onClick={() => shareFile(result.pdfBlob, pdfName, { title: docNoun })}>
+          <button className="btn" onClick={() => shareFile(result.pdfBlob, pdfName, { title: docNoun, text: result.shareText })}>
             <Icon name="share" /> Share PDF
           </button>
         </div>
@@ -375,9 +386,14 @@ export default function BillEditor() {
                   <div style={{ minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>{money(amount)}</div>
                 </div>
               </div>
-              <button className="btn btn--ghost btn--sm" style={{ marginTop: 8 }} onClick={() => removeItem(it.id)}>
-                Remove
-              </button>
+              <div className="row" style={{ gap: 8, marginTop: 8 }}>
+                <button className="btn btn--ghost btn--sm" onClick={() => duplicateItem(it.id)}>
+                  <Icon name="copy" size={14} /> Duplicate
+                </button>
+                <button className="btn btn--ghost btn--sm" onClick={() => removeItem(it.id)}>
+                  Remove
+                </button>
+              </div>
             </div>
           );
         }}

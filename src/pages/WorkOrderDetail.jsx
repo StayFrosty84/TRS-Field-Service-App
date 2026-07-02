@@ -24,6 +24,7 @@ import { resolveStage, stageColorClass, daysInCurrentStage } from '../lib/stages
 import { toDateInput, fromDateInput, money, fmtDate, getPhones } from '../lib/format.js';
 import { normalizePayments, amountPaid, billBalance, paymentState } from '../lib/payments.js';
 import { shareFile, openBlob } from '../lib/share.js';
+import { fillShareMessage, shareMessageValues } from '../lib/shareMessage.js';
 import { useToast } from '../components/Toast.jsx';
 import { useFeatures } from '../lib/useFeatures.js';
 import AddressAutocomplete from '../components/AddressAutocomplete.jsx';
@@ -171,7 +172,7 @@ export default function WorkOrderDetail() {
 
       <div className="card" style={{ marginTop: 12 }}>
         <div>
-          <Icon name="building" size={18} /> <Link to={`/accounts/${account?.id}`} style={{ fontSize: 20, fontWeight: 600 }}>{account?.name || 'Unknown'}</Link>
+          <Icon name="building" size={20} /> <Link to={`/accounts/${account?.id}`} style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.2 }}>{account?.name || 'Unknown'}</Link>
         </div>
         {getPhones(account).map((p, i) => (
           <PhoneRow key={`ap${i}`} phone={p} style={{ marginTop: 8 }} />
@@ -188,7 +189,7 @@ export default function WorkOrderDetail() {
         {contact && (
           <>
             <div style={{ marginTop: 12 }}>
-              <Icon name="user" size={17} /> <Link to={`/contacts/${contact.id}`} style={{ fontSize: 18, fontWeight: 600 }}>{contact.name}</Link>
+              <Icon name="user" size={18} /> <Link to={`/contacts/${contact.id}`} style={{ fontSize: 20, fontWeight: 600 }}>{contact.name}</Link>
               {contact.role ? <span className="muted"> · {contact.role}</span> : ''}
             </div>
             {getPhones(contact).map((p, i) => (
@@ -441,7 +442,12 @@ export default function WorkOrderDetail() {
               </button>
               <button
                 className="btn"
-                onClick={() => shareFile(bill.pdfBlob, 'bill-of-sale.pdf', { title: 'Bill of Sale' })}
+                onClick={() =>
+                  shareFile(bill.pdfBlob, 'bill-of-sale.pdf', {
+                    title: 'Bill of Sale',
+                    text: fillShareMessage(profile?.shareMessage, shareMessageValues({ profile, account, order, bill })),
+                  })
+                }
               >
                 <Icon name="share" /> Share PDF
               </button>
