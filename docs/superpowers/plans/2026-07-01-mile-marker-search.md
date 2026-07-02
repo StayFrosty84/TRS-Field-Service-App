@@ -128,28 +128,42 @@ async function thruwayMarkers() {
 }
 
 // --- NYSDOT derived whole-mile points ------------------------------------------------------
-// Interstate layer polylines carry an M-value (mile measure) on every vertex. For each route
-// we walk vertices in increasing M and interpolate a point at each whole mile.
+// Interstate polylines carry an M-value (mile measure) per vertex, but M RESETS to 0 in each
+// county segment. So per route we take the primary carriageway (DIRECTION '1'), order its
+// segments by COUNTY_ORDER, and accumulate an offset to rebuild statewide mileposts
+// (statewideM = sum of prior segment lengths + local M), then emit a point at each whole mile.
 async function nysdotMarkers() {
   const feats = await queryAll(MILEPOINT, {
-    outFields: 'ROUTE_NUMBER,DIRECTION',
+    outFields: 'ROUTE_NUMBER,DIRECTION,COUNTY_ORDER',
     returnM: 'true',
   });
-  // Group vertices by route number; keep the primary direction only (DIRECTION '0' or '1').
+  // Group features by route number; DIRECTION domain is '1'/'2' — '1' is the milepost-
+  // increasing carriageway (verified: its M=0 end sits at the route's start / milepost 0).
   const byRoute = new Map();
   for (const f of feats) {
+    if (String(f.attributes.DIRECTION) !== '1') continue;
     const num = f.attributes.ROUTE_NUMBER;
     if (!num) continue;
-    if (!['0', '1'].includes(String(f.attributes.DIRECTION))) continue;
-    const paths = f.geometry?.paths || [];
     if (!byRoute.has(num)) byRoute.set(num, []);
-    byRoute.get(num).push(...paths);
+    byRoute.get(num).push(f);
   }
   const markers = [];
-  for (const [num, paths] of byRoute) {
-    // Flatten all vertices [lng, lat, m], sort by m, emit one point per whole mile.
-    const verts = paths.flat().filter((v) => v.length >= 3 && Number.isFinite(v[2]));
-    verts.sort((a, b) => a[2] - b[2]);
+  for (const [num, features] of byRoute) {
+    features.sort((a, b) =>
+      String(a.attributes.COUNTY_ORDER).localeCompare(String(b.attributes.COUNTY_ORDER)),
+    );
+    // Concatenate segment vertices as [lng, lat, statewideM].
+    const verts = [];
+    let offset = 0;
+    for (const f of features) {
+      const local = (f.geometry?.paths || [])
+        .flat()
+        .filter((v) => v.length >= 3 && Number.isFinite(v[2]));
+      if (!local.length) continue;
+      local.sort((a, b) => a[2] - b[2]);
+      for (const [lng, lat, m] of local) verts.push([lng, lat, offset + m]);
+      offset += local[local.length - 1][2];
+    }
     if (verts.length < 2) continue;
     let nextMile = Math.ceil(verts[0][2]);
     for (let i = 1; i < verts.length; i++) {
@@ -231,8 +245,12 @@ function attachTowns(markers, places) {
 const round5 = (n) => Math.round(n * 1e5) / 1e5;
 
 // --- Dedup: drop a derived point when a Thruway post for the same route is within 0.5 mi ----
+// Distance-only (NOT mm-based): the Thruway and NYSDOT number the same route differently, so
+// where they physically coincide (the Thruway mainline) we keep the POSTED Thruway numbering
+// and drop the derived point; on free segments with no nearby Thruway post the derived point
+// survives with the numbering actually signed there.
 function dedup(thruway, derived) {
-  const byRoute = new Map(); // route → [{lat,lng,mm}]
+  const byRoute = new Map(); // route → [{lat,lng}]
   for (const m of thruway) for (const r of m.r) {
     if (!byRoute.has(r)) byRoute.set(r, []);
     byRoute.get(r).push(m);
@@ -240,7 +258,7 @@ function dedup(thruway, derived) {
   return derived.filter((d) => {
     const posts = byRoute.get(d.r[0]);
     if (!posts) return true;
-    return !posts.some((p) => Math.abs(p.mm - d.mm) <= 1 && haversine(d.lat, d.lng, p.lat, p.lng) <= 0.5);
+    return !posts.some((p) => haversine(d.lat, d.lng, p.lat, p.lng) <= 0.5);
   });
 }
 
