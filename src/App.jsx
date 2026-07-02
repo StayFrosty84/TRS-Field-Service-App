@@ -15,6 +15,7 @@ import AccountDetail from './pages/AccountDetail.jsx';
 import Contacts from './pages/Contacts.jsx';
 import ContactForm from './pages/ContactForm.jsx';
 import ContactDetail from './pages/ContactDetail.jsx';
+import Assets from './pages/Assets.jsx';
 import AssetForm from './pages/AssetForm.jsx';
 import AssetDetail from './pages/AssetDetail.jsx';
 import Reports from './pages/Reports.jsx';
@@ -49,6 +50,7 @@ export default function App() {
           <Route path="contacts/:id" element={<ContactDetail />} />
           <Route path="contacts/:id/edit" element={<ContactForm />} />
 
+          <Route path="assets" element={<Assets />} />
           <Route path="assets/new" element={<AssetForm />} />
           <Route path="assets/:id" element={<AssetDetail />} />
           <Route path="assets/:id/edit" element={<AssetForm />} />
