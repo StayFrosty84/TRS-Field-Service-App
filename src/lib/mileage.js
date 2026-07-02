@@ -34,10 +34,16 @@ export function roundTrip(oneWayMiles) {
 // origin and dest each accept { lat, lng } or { text }.
 // Returns a number (round-trip miles) or null on any failure.
 export async function computeRoundTripMiles({ origin, dest }) {
-  if (!origin || !dest) return null;
+  if (!origin || !dest) {
+    console.warn('[mileage] no origin or dest', { origin, dest }); // TEMP diagnostic
+    return null;
+  }
   try {
     const key = getGoogleKey();
-    if (!key) return null;
+    if (!key) {
+      console.warn('[mileage] no Google key'); // TEMP diagnostic
+      return null;
+    }
     const { DistanceMatrixService } = await loadRoutes(key);
     const svc = new DistanceMatrixService();
     const toLatLng = (p) => (p.lat != null ? { lat: p.lat, lng: p.lng } : p.text);
@@ -47,12 +53,14 @@ export async function computeRoundTripMiles({ origin, dest }) {
       travelMode: 'DRIVING',
     });
     const element = response?.rows?.[0]?.elements?.[0];
+    console.warn('[mileage] response', { top: response?.rows ? 'rows-ok' : response, elementStatus: element?.status, element }); // TEMP diagnostic
     if (!element || element.status !== 'OK') return null;
     const meters = element.distance?.value;
     if (meters == null) return null;
     const oneWayMiles = meters / 1609.344;
     return roundTrip(oneWayMiles);
-  } catch {
+  } catch (err) {
+    console.warn('[mileage] threw', err?.message || err, err); // TEMP diagnostic
     return null;
   }
 }
