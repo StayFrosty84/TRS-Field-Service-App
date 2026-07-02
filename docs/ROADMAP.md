@@ -19,6 +19,19 @@ Each item: title — one-line mechanic — **(size S/M/L)** — grounding (files
 
 ## ✅ Shipped
 
+- **Mile-marker search (NY interstates) (2026-07-01)** — set a WO location by interstate +
+  mile marker, fully offline. An **Address | Mile marker** toggle on the WO location field
+  (both New and Detail) swaps the address autocomplete for a route picker + marker-number
+  input; matches show an enriched label (e.g. `I-90 MM 436.0 · Thruway Mainline · near
+  Hamburg`) and, on pick, emit the same `{label, lat, lng}` as an address so Navigate, the map
+  embed, and round-trip mileage work unchanged. Data is a build-time-bundled ~6,900-marker
+  JSON (NY Thruway posted mileposts at tenth precision + NYSDOT-derived whole-mile interstate
+  points, town-enriched from the Census gazetteer), loaded via dynamic import so it's precached
+  for offline. Regenerate with `npm run build:mile-markers`. (`scripts/buildMileMarkers.mjs`,
+  `src/data/mileMarkers.json`, `mileMarkers.js`, `MileMarkerPicker.jsx`, `LocationInput.jsx`,
+  `WorkOrderNew.jsx`, `WorkOrderDetail.jsx`) 📄 Spec:
+  [specs/2026-07-01-mile-marker-search-design.md](superpowers/specs/2026-07-01-mile-marker-search-design.md)
+  · Plan: [plans/2026-07-01-mile-marker-search.md](superpowers/plans/2026-07-01-mile-marker-search.md)
 - **Asset / truck tracking (2026-07-01)** — per-account trucks/equipment. New `assets` table
   (`db.version(7)`, additive) with make/model/year/unit #/plate/VIN/mileage/notes; a "Trucks /
   Equipment" section on Account detail (mirrors contacts); asset form/detail pages with derived
@@ -134,14 +147,6 @@ Verified in code. Listed so they aren't re-proposed.
   the `isStuck` badge pattern from `stages.js`.
 - **Revenue by work type** — Reports breakdown of billed/paid by `workTypeId`. **(S)** —
   `Reports.jsx`; WO already records `workTypeId`.
-- **Mile-marker search (NY interstates)** — set a WO location by interstate + mile marker,
-  fully offline: an Address | Mile marker toggle on the WO location field, a route picker +
-  marker number input, and a build-time-bundled dataset (Thruway posted mileposts + derived
-  NYSDOT interstate points, town/county-enriched). Picking emits `{label, lat, lng}` so
-  Navigate / map / mileage need zero changes. **(M)** — new `scripts/buildMileMarkers.mjs`,
-  `src/data/mileMarkers.json`, `mileMarkers.js`, `LocationInput.jsx`, `MileMarkerPicker.jsx`;
-  wraps `AddressAutocomplete.jsx` on `WorkOrderNew.jsx` / `WorkOrderDetail.jsx`. 📄 Spec:
-  [specs/2026-07-01-mile-marker-search-design.md](superpowers/specs/2026-07-01-mile-marker-search-design.md).
 - **Configurable PDF fields (visibility, global)** — admin on/off toggles in Settings for each
   optional Bill of Sale field (logo, seller phone/email/address, dates, payments summary,
   contact name/phone/email, Unit #, Reference #, issue, signature, terms/notes, photos); core
@@ -200,5 +205,5 @@ Verified in code. Listed so they aren't re-proposed.
 - Google Maps API key (available) for richer address autocomplete. Note: there is
   in-progress address-autocomplete work (`addrProvider.js`, `googlePlaces.js`,
   `AddressAutocomplete.jsx`) — reconcile with that first.
-- Search mile markers. ⬆️ **Promoted to Mile-marker search (NY interstates)** in Ready —
-  spec'd 2026-07-01.
+- Search mile markers. ✅ **Shipped 2026-07-01** as Mile-marker search (NY interstates) — see
+  the Shipped section.
