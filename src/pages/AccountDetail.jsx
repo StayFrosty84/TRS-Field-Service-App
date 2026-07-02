@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, deleteAccount } from '../db/db.js';
+import { assetLabel } from '../lib/assets.js';
 import { fmtDate, getPhones, money } from '../lib/format.js';
 import { accountOutstanding } from '../lib/unpaid.js';
 import { useToast } from '../components/Toast.jsx';
@@ -17,17 +18,18 @@ export default function AccountDetail() {
     const account = await db.accounts.get(id);
     if (!account) return { missing: true };
     const contacts = await db.contacts.where('accountId').equals(id).toArray();
+    const assets = await db.assets.where('accountId').equals(id).sortBy('createdAt');
     const orders = await db.workOrders.where('accountId').equals(id).reverse().sortBy('createdAt');
     const orderIds = orders.map((o) => o.id);
     const bills = orderIds.length
       ? await db.billsOfSale.where('workOrderId').anyOf(orderIds).toArray()
       : [];
-    return { account, contacts, orders, bills };
+    return { account, contacts, assets, orders, bills };
   }, [id]);
 
   if (!data) return null;
   if (data.missing) return <p className="muted">Account not found.</p>;
-  const { account, contacts, orders, bills } = data;
+  const { account, contacts, assets, orders, bills } = data;
   const phones = getPhones(account);
   const { totalUnpaid, lastPaidDate } = accountOutstanding(bills);
 
@@ -113,6 +115,24 @@ export default function AccountDetail() {
           onClick={() => navigate('/contacts/new', { state: { accountId: id } })}
         >
           <Icon name="plus" /> Add contact
+        </button>
+      </div>
+
+      <div className="section-title">Trucks / Equipment ({assets.length})</div>
+      <div className="list">
+        {assets.map((a) => (
+          <Link key={a.id} className="list-item" to={`/assets/${a.id}`}>
+            <p className="list-item__title">{assetLabel(a)}</p>
+            <p className="list-item__sub">
+              {[a.plate && `Plate ${a.plate}`, a.vin && `VIN …${a.vin.slice(-6)}`].filter(Boolean).join(' · ') || '—'}
+            </p>
+          </Link>
+        ))}
+        <button
+          className="btn btn--ghost"
+          onClick={() => navigate('/assets/new', { state: { accountId: id } })}
+        >
+          <Icon name="plus" /> Add truck / equipment
         </button>
       </div>
 
