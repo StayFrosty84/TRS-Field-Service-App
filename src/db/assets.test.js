@@ -25,9 +25,11 @@ describe('assets', () => {
   it('creates, updates, and lists assets per account (createdAt order)', async () => {
     const acctA = await createAccount({ name: 'Acme' });
     const acctB = await createAccount({ name: 'Bravo' });
-    const a1 = await createAsset(acctA, { make: 'Ford', model: 'F-350', unitNumber: '12' });
-    const a2 = await createAsset(acctA, { make: 'Kenworth', model: 'T680' });
-    await createAsset(acctB, { make: 'Mack' });
+    // Explicit createdAt so the sort order is deterministic — Date.now() can
+    // collide within a millisecond for back-to-back creates.
+    const a1 = await createAsset(acctA, { make: 'Ford', model: 'F-350', unitNumber: '12', createdAt: 1000 });
+    const a2 = await createAsset(acctA, { make: 'Kenworth', model: 'T680', createdAt: 2000 });
+    await createAsset(acctB, { make: 'Mack', createdAt: 3000 });
 
     await updateAsset(a2, { plate: 'ABC-123' });
 
