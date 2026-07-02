@@ -15,8 +15,21 @@ const DATA = {
 };
 
 describe('listRoutes', () => {
-  it('returns distinct routes sorted by interstate number', () => {
-    expect(listRoutes(DATA)).toEqual(['I-81', 'I-87', 'I-90']);
+  it('surfaces WNY priority routes first, then the rest by number', () => {
+    // I-90 is a priority (Buffalo) route so it leads; I-81 and I-87 follow numerically.
+    expect(listRoutes(DATA)).toEqual(['I-90', 'I-81', 'I-87']);
+  });
+
+  it('orders the full priority block ahead of non-priority routes', () => {
+    const data = { markers: [
+      { r: ['I-84'] }, { r: ['I-490'] }, { r: ['I-990'] },
+      { r: ['I-90'] }, { r: ['I-190'] }, { r: ['I-290'] },
+      { r: ['I-390'] }, { r: ['I-590'] }, { r: ['I-81'] },
+    ] };
+    expect(listRoutes(data)).toEqual([
+      'I-90', 'I-190', 'I-290', 'I-990', 'I-390', 'I-490', 'I-590', // WNY block, in order
+      'I-81', 'I-84', // remainder, numeric
+    ]);
   });
 });
 

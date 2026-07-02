@@ -5,10 +5,21 @@
 // Sort key: numeric part of an "I-NN" route id ascending.
 const routeNum = (r) => parseInt(r.slice(2), 10);
 
+// Routes surfaced first in the picker, in this exact order: the Western NY service area —
+// Buffalo (I-90, I-190, I-290, I-990) then Rochester (I-390, I-490, I-590). Everything else
+// follows in numeric order. (This also makes the picker default to I-90.)
+const PRIORITY_ROUTES = ['I-90', 'I-190', 'I-290', 'I-990', 'I-390', 'I-490', 'I-590'];
+const priorityRank = (r) => {
+  const i = PRIORITY_ROUTES.indexOf(r);
+  return i === -1 ? Infinity : i;
+};
+
 export function listRoutes(data) {
   const set = new Set();
   for (const m of data.markers) for (const r of m.r) set.add(r);
-  return [...set].sort((a, b) => routeNum(a) - routeNum(b));
+  return [...set].sort(
+    (a, b) => priorityRank(a) - priorityRank(b) || routeNum(a) - routeNum(b),
+  );
 }
 
 // Format a marker (with a `route` field naming the signed route being shown) as a label.
