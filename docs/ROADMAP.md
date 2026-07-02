@@ -19,6 +19,14 @@ Each item: title — one-line mechanic — **(size S/M/L)** — grounding (files
 
 ## ✅ Shipped
 
+- **Quick-wins wave (2026-07-01)** — (1) account name (24px/700) and contact name (20px/600)
+  now anchor the WO detail screen; (2) one-tap **Duplicate** on each bill line inserts an
+  independent copy below it; (3) bill/estimate shares pre-fill the email/text body from an
+  editable Settings template (Business profile → Share message) with `{accountName}`,
+  `{docType}`, `{docNumber}`, `{total}`, `{businessName}` placeholders — default ships,
+  blank restores it, message stays editable in the mail app. (`shareMessage.js` + tests,
+  `Settings.jsx`, `BillEditor.jsx`, `WorkOrderDetail.jsx`) 📄 Spec:
+  [specs/2026-07-01-quick-wins-design.md](superpowers/specs/2026-07-01-quick-wins-design.md)
 - **Catalog-linked work-type templates** — work-type template line items now reference the
   Parts & Labor catalog by id (pure reference; name/price resolve live from one place).
   Legacy free-form rows still work. Add products to a work type via the catalog picker or a
@@ -96,9 +104,6 @@ Verified in code. Listed so they aren't re-proposed.
   rows + `accountOutstanding` / `rating` (both already exist).
 - **Payment-status pill on Work rows** — colored paid / partial / unpaid pill per row.
   **(S)** — `Work.jsx` `billByWo` + `payments.js`.
-- **Enlarge Account Name & Contact Name on WO detail** — increase the font size / visual
-  prominence of the account name and contact name on the work-order detail screen so they read
-  as the primary identifiers at a glance. **(S)** — `WorkOrderDetail.jsx` + `styles.css`.
 - **Tab badge counts** — count of unpaid bills on the Work tab and stuck jobs on Home, shown
   as nav badges. **(S)** — `Layout.jsx` nav; reuse `unpaid.js` and `isStuck` from `stages.js`.
 - **Recents on Home** — quick chips linking to recently viewed work orders / accounts.
@@ -108,8 +113,6 @@ Verified in code. Listed so they aren't re-proposed.
   id + timestamp when a detail view opens (a small `recents` store or localStorage); render on
   `Accounts.jsx` / `Contacts.jsx` / `Work.jsx`. Broader than **Recents on Home** (Home chips);
   the two should share one tracking source.
-- **Duplicate line item ("add another like this")** — one-tap clone of a bill line. **(S)** —
-  `BillEditor.jsx` + existing `SortableList.jsx`.
 - **Aging buckets on unpaid (30/60/90)** — color-code overdue balances by age on the Home
   unpaid shortlist and Account detail. **(S–M)** — `unpaid.js`, `Home.jsx`.
 - **Overdue-to-start flag (+ expected-start date)** — add an `expectedStartDate` field to the
@@ -118,8 +121,6 @@ Verified in code. Listed so they aren't re-proposed.
   the `isStuck` badge pattern from `stages.js`.
 - **Revenue by work type** — Reports breakdown of billed/paid by `workTypeId`. **(S)** —
   `Reports.jsx`; WO already records `workTypeId`.
-- **Custom share/email message template** — editable default text used when sending a bill via
-  the share sheet. **(S)** — `share.js` `text` param + a Settings value.
 - **Configurable PDF fields (visibility, global)** — admin on/off toggles in Settings for each
   optional Bill of Sale field (logo, seller phone/email/address, dates, payments summary,
   contact name/phone/email, Unit #, Reference #, issue, signature, terms/notes, photos); core
